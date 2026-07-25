@@ -1,0 +1,40 @@
+name: Daily Tigers wallpaper
+
+on:
+  schedule:
+    # 11:00 UTC = 7:00 AM Eastern (EDT). Late West-coast games are final by then.
+    - cron: "0 11 * * *"
+  workflow_dispatch:        # adds a "Run workflow" button for manual runs
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Render the wallpaper
+        run: python render_wallpaper.py
+
+      - name: Commit if the image changed
+        run: |
+          git config user.name  "tigers-wallpaper-bot"
+          git config user.email "actions@github.com"
+          git add --force output/current.png
+          if git diff --staged --quiet; then
+            echo "No change today — nothing to commit."
+          else
+            git commit -m "Wallpaper update $(date -u +'%Y-%m-%d')"
+            git push
+          fi
