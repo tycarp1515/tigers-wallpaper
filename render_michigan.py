@@ -277,8 +277,8 @@ SHORT = {
 # iOS zooms Shortcut-set wallpapers (measured 1.18x-1.5x on Ty's phone) and the
 # crop anchor is not stable. So all content lives in a central box with a wide
 # blue margin around it — the zoom eats padding instead of games.
-SAFE_X0, SAFE_X1 = 190, 1100
-BAND_TOP, BAND_BOT = 848, 1656
+SAFE_X0, SAFE_X1 = 130, 1160
+BAND_TOP, BAND_BOT = 780, 1670
 
 
 BG_IMAGE = os.path.join(HERE, "assets", "bg-michigan.png")
@@ -341,41 +341,35 @@ def build(me, games, logos):
     today = dt.date.today()
 
     # ---------------------------------------------------------- header
-    mf = font("BigShoulders-Bold.ttf", 84)
+    mf = font("BigShoulders-Bold.ttf", 98)
     bb = d.textbbox((0, 0), "MICHIGAN", font=mf)
     d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP), "MICHIGAN", font=mf,
            fill=MAIZE + (255,))
-    yf = font("GeistMono-Bold.ttf", 21)
-    sub = f"F O O T B A L L   {SEASON}"
-    bb = d.textbbox((0, 0), sub, font=yf)
-    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 70), sub,
-           font=yf, fill=(255, 255, 255, 165))
-
     my_rank = next((g["my_rank"] for g in games if g["my_rank"]), None)
     cw_ = sum(1 for g in games if g["conf_game"] and g["res"] == "W")
     cl_ = sum(1 for g in games if g["conf_game"] and g["res"] == "L")
     bits = f"{me['record']}  OVERALL     {cw_}-{cl_}  BIG TEN     " + \
            (f"#{my_rank}  AP" if my_rank else "NR")
-    rf = font("GeistMono-Bold.ttf", 24)
+    rf = font("GeistMono-Bold.ttf", 26)
     bb = d.textbbox((0, 0), bits, font=rf)
-    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 102), bits,
+    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 104), bits,
            font=rf, fill=(255, 255, 255, 235))
 
     # ---------------------------------------------------------- game grid
-    GTOP = BAND_TOP + 140
+    GTOP = BAND_TOP + 152
     COLS, CGAP, RGAP = 2, 24, 12
     CW_ = (SAFE_X1 - SAFE_X0 - CGAP) // COLS
     n = len(games)
     per = (n + COLS - 1) // COLS
-    CH_ = min(112, (BAND_BOT - GTOP - (per - 1) * RGAP) // max(1, per))
+    CH_ = min(124, (BAND_BOT - GTOP - (per - 1) * RGAP) // max(1, per))
 
-    date_f = font("GeistMono-Bold.ttf", 22)
-    name_f = font("BigShoulders-Bold.ttf", 47)
-    rank_f = font("GeistMono-Bold.ttf", 22)
+    date_f = font("GeistMono-Bold.ttf", 24)
+    name_f = font("BigShoulders-Bold.ttf", 53)
+    rank_f = font("GeistMono-Bold.ttf", 24)
     va_f   = font("GeistMono-Bold.ttf", 17)
-    time_f = font("BigShoulders-Bold.ttf", 40)
-    tv_f   = font("GeistMono-Regular.ttf", 17)
-    res_f  = font("GeistMono-Bold.ttf", 31)
+    time_f = font("BigShoulders-Bold.ttf", 45)
+    tv_f   = font("GeistMono-Regular.ttf", 19)
+    res_f  = font("GeistMono-Bold.ttf", 35)
 
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
@@ -390,7 +384,7 @@ def build(me, games, logos):
                              fill=(MAIZE if g["home"] else (165, 180, 200)) + (a,))
 
         ds = f"{MON[g['date'].month]} {g['date'].day}"
-        ld.text((x + 21, y + 11), ds, font=date_f, fill=(255, 255, 255, int(a * 0.75)))
+        ld.text((x + 23, y + 12), ds, font=date_f, fill=(255, 255, 255, int(a * 0.75)))
 
         # right side: result or kickoff
         rx = x + CW_ - 17
@@ -411,13 +405,13 @@ def build(me, games, logos):
 
         # logo + opponent
         lg = logos.get(g["opp_id"])
-        ly = y + CH_ - 64
+        ly = y + CH_ - 72
         if lg:
-            box = 50
+            box = 58
             l2 = fade(fit(lg, box, box), a)
-            layer.alpha_composite(l2, (x + 18 + (box - l2.width) // 2,
-                                       ly + (50 - l2.height) // 2))
-        tx = x + (78 if lg else 24)
+            layer.alpha_composite(l2, (x + 20 + (box - l2.width) // 2,
+                                       ly + (58 - l2.height) // 2))
+        tx = x + (88 if lg else 26)
         if g["opp_rank"]:
             rk = f"#{g['opp_rank']}"
             ld.text((tx, ly + 12), rk, font=rank_f, fill=MAIZE + (a,))
@@ -433,7 +427,7 @@ def build(me, games, logos):
 
     # ---------------------------------------------------------- footer
     d2 = ImageDraw.Draw(img)
-    ff = font("GeistMono-Regular.ttf", 19)
+    ff = font("GeistMono-Regular.ttf", 21)
     foot = "MAIZE = HOME     ALL TIMES ET     BYE OCT 10"
     bb = d2.textbbox((0, 0), foot, font=ff)
     d2.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_BOT + 12), foot,
