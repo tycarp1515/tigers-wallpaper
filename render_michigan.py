@@ -86,28 +86,57 @@ def _network(comp):
     return None
 
 
-def fetch_schedule(season):
+def _fetch_one(season, seasontype):
     r = requests.get(f"{API}/teams/{TEAM_ID}/schedule",
-                     params={"season": season}, headers=UA, timeout=30)
+                     params={"season": season, "seasontype": seasontype},
+                     headers=UA, timeout=30)
     r.raise_for_status()
-    data = r.json()
+    return r.json()
+
+
+def fetch_schedule(season):
+    # ESPN defaults to seasontype=1 (preseason), which is EMPTY for college
+    # football. 2 = regular season, 3 = postseason/bowls. Merge both so a bowl
+    # or playoff game shows up automatically once it's scheduled.
+    data = None
+    events = []
+    for st in (2, 3):
+        try:
+            d = _fetch_one(season, st)
+        except Exception as e:
+            print(f"  ! seasontype={st} fetch failed: {e}", file=sys.stderr)
+            continue
+        if data is None or (d.get("events") and not data.get("events")):
+            data = d if data is None else data
+        if data is None:
+            data = d
+        evs = d.get("events") or []
+        print(f"  seasontype={st}: {len(evs)} events")
+        events.extend(evs)
+    if data is None:
+        raise RuntimeError("no response from ESPN")
 
     team = data.get("team") or {}
     me = {
         "abbrev": team.get("abbreviation", "MICH"),
-        "logo":   _first(team, "logos", 0, "href"),
+        "logo":   team.get("logo") or _first(team, "logos", 0, "href"),
         "record": team.get("recordSummary") or "0-0",
         "conf":   team.get("standingSummary") or "",
     }
 
     games = []
-    for ev in data.get("events") or []:
+    seen = set()
+    for ev in events:
         comp = _first(ev, "competitions", 0, default={})
         comps = comp.get("competitors") or []
         us = next((c for c in comps if str(_first(c, "team", "id")) == str(TEAM_ID)), None)
         them = next((c for c in comps if c is not us), None)
         if not us or not them:
             continue
+        key = ev.get("id") or comp.get("id")
+        if key in seen:
+            continue
+        seen.add(key)
 
         start = dt.datetime.fromisoformat(
             (comp.get("date") or ev.get("date")).replace("Z", "+00:00")).astimezone(ET)
@@ -139,6 +168,7 @@ def fetch_schedule(season):
             "home":    us.get("homeAway") == "home",
             "neutral": bool(comp.get("neutralSite")),
             "tv":      _network(comp),
+            "conf_game": bool(comp.get("conferenceCompetition")),
             "final":   final,
             "res":     res,
             "us":      us_s,
@@ -246,11 +276,9 @@ def build(me, games, logos):
 
     # ---- stat strip: overall / big ten / rank ---------------------------
     my_rank = next((g["my_rank"] for g in games if g["my_rank"]), None)
-    conf = me["conf"] or ""
-    if "Big Ten" in conf:
-        conf_rec = conf.replace("Big Ten", "").strip().split()[0] if conf.split() else "0-0"
-    else:
-        conf_rec = conf.strip() or "--"
+    cw = sum(1 for g in games if g["conf_game"] and g["res"] == "W")
+    cl = sum(1 for g in games if g["conf_game"] and g["res"] == "L")
+    conf_rec = f"{cw}-{cl}"
     stats = [(me["record"], "OVERALL"), (conf_rec, "BIG TEN"),
              (f"#{my_rank}" if my_rank else "NR", "AP RANK")]
     nf, lf = font("BigShoulders-Bold.ttf", 82), font("GeistMono-Regular.ttf", 22)
