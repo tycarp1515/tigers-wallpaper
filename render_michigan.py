@@ -38,7 +38,24 @@ WHITE = (255, 255, 255)
 DIM   = (150, 165, 185)
 
 API = "https://site.api.espn.com/apis/site/v2/sports/football/college-football"
-UA  = {"User-Agent": "Mozilla/5.0 (michigan-wallpaper)"}
+
+# ESPN sits behind Akamai and rejects requests that look automated. A complete,
+# realistic browser header set is what gets through.
+UA = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.espn.com/college-football/team/schedule/_/id/130",
+    "Origin": "https://www.espn.com",
+    "Connection": "keep-alive",
+    "sec-ch-ua": '"Chromium";v="126", "Not)A;Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+}
 
 font = lambda n, s: ImageFont.truetype(os.path.join(FONTS, n), s)
 
@@ -87,11 +104,41 @@ def _network(comp):
 
 
 def _fetch_one(season, seasontype):
-    r = requests.get(f"{API}/teams/{TEAM_ID}/schedule",
-                     params={"season": season, "seasontype": seasontype},
-                     headers=UA, timeout=30)
-    r.raise_for_status()
-    return r.json()
+    """Try the API host, then ESPN's CDN host. Reports what each one did."""
+    import time
+    attempts = [
+        ("site.api", f"{API}/teams/{TEAM_ID}/schedule",
+         {"season": season, "seasontype": seasontype}),
+        ("cdn.core", "https://cdn.espn.com/core/college-football/schedule",
+         {"xhr": 1, "year": season, "seasontype": seasontype, "team": TEAM_ID}),
+    ]
+    last = None
+    for label, url, params in attempts:
+        for attempt in range(2):
+            try:
+                r = requests.get(url, params=params, headers=UA, timeout=30)
+                if r.status_code == 200:
+                    j = r.json()
+                    # the cdn host wraps things one level deeper
+                    if "events" not in j and isinstance(j.get("content"), dict):
+                        sch = j["content"].get("schedule") or {}
+                        evs = []
+                        if isinstance(sch, dict):
+                            for wk in sch.values():
+                                evs.extend((wk or {}).get("events") or [])
+                        elif isinstance(sch, list):
+                            evs = sch
+                        j = {"team": j["content"].get("team") or {}, "events": evs}
+                    print(f"    [{label}] 200 OK, {len(j.get('events') or [])} events")
+                    return j
+                print(f"    [{label}] HTTP {r.status_code}")
+                last = f"{label} HTTP {r.status_code}"
+                break
+            except Exception as e:
+                last = f"{label} {e}"
+                print(f"    [{label}] {type(e).__name__}: {e}")
+                time.sleep(1.5)
+    raise RuntimeError(last or "all hosts failed")
 
 
 def fetch_schedule(season):
@@ -176,6 +223,49 @@ def fetch_schedule(season):
         })
 
     games.sort(key=lambda g: g["dt"])
+    return me, games
+
+
+
+# --------------------------------------------------------- offline fallback
+# The 2026 slate is fixed and public. If ESPN blocks us, render from this so
+# there's still a correct wallpaper — just without live scores, ranks or TV.
+# (id, month, day, opponent name, espn id, home?, kickoff ET or None, conf game?)
+STATIC_2026 = [
+    (1,  9,  5, "Western Michigan", "2711", True,  "7:30 PM", False),
+    (2,  9, 12, "Oklahoma",         "201",  True,  "12:00 PM", False),
+    (3,  9, 19, "UTEP",             "2638", True,  "3:30 PM", False),
+    (4,  9, 26, "Iowa",             "2294", True,  None,      True),
+    (5, 10,  3, "Minnesota",        "135",  False, None,      True),
+    (6, 10, 17, "Penn State",       "213",  True,  None,      True),
+    (7, 10, 24, "Indiana",          "84",   True,  None,      True),
+    (8, 10, 31, "Rutgers",          "164",  False, None,      True),
+    (9, 11,  7, "Michigan State",   "127",  True,  None,      True),
+    (10, 11, 14, "Oregon",          "2483", False, None,      True),
+    (11, 11, 21, "UCLA",            "26",   True,  None,      True),
+    (12, 11, 28, "Ohio State",      "194",  False, "12:00 PM", True),
+]
+
+
+def static_schedule(season):
+    me = {"abbrev": "MICH", "logo": None, "record": "0-0", "conf": ""}
+    games = []
+    for _, mo, dy, name, eid, home, kick, confg in STATIC_2026:
+        date = dt.date(season, mo, dy)
+        if kick:
+            t, ap = kick.split(" ")
+        else:
+            t, ap = "TBD", ""
+        games.append({
+            "date": date, "dt": dt.datetime.combine(date, dt.time(12), ET),
+            "time": t, "ampm": ap,
+            "opp": name[:4].upper(), "opp_name": name, "opp_id": eid,
+            "opp_logo": f"https://a.espncdn.com/i/teamlogos/ncaa/500/{eid}.png",
+            "opp_rank": None, "my_rank": None,
+            "home": home, "neutral": False, "tv": None,
+            "conf_game": confg, "final": False, "res": None,
+            "us": None, "them": None,
+        })
     return me, games
 
 
@@ -433,14 +523,18 @@ def build(me, games, logos):
 
 def main():
     os.makedirs(OUTDIR, exist_ok=True)
+    live = True
     try:
         me, games = fetch_schedule(SEASON)
+        if not games:
+            raise RuntimeError("ESPN returned zero games")
     except Exception as e:
-        print("ERROR fetching ESPN schedule:", e, file=sys.stderr)
-        sys.exit(1)
-    if not games:
-        print("No games returned — check the season year.", file=sys.stderr)
-        sys.exit(1)
+        print(f"!! ESPN unavailable ({e})", file=sys.stderr)
+        print("!! Falling back to the bundled 2026 schedule "
+              "(no live scores, ranks or TV).", file=sys.stderr)
+        me, games = static_schedule(SEASON)
+        live = False
+    print("DATA SOURCE:", "ESPN (live)" if live else "bundled static schedule")
 
     logos = {"MICH": get_logo("MICH", me["logo"])}
     for g in games:
