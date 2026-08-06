@@ -1,125 +1,151 @@
-# Tigers Schedule Wallpaper — Fully Automatic
+# Sports Schedule Wallpapers — Auto-Updating
 
-A Detroit Tigers schedule wallpaper (1290×2796) that updates itself every morning
-with the latest results. **GitHub runs it — your computer doesn't need to be on.**
+Renders schedule wallpapers that update themselves every morning.
+**GitHub runs everything — your computer never has to be on.**
 
-Finished games dim and show **W/L** (wins in orange); upcoming games stay bright with
-the start time in **ET**. Orange bar = home, white bar = away. Today's game gets an
-orange outline. When a month's games are done, it rolls to the next month on its own.
+Produces four things:
 
-Data comes from MLB's public Stats API. No API key, no account, no cost.
+| Output | What it is |
+|---|---|
+| `output/current.png` | Detroit Tigers — current month, iPhone wallpaper |
+| `output/michigan.png` | Michigan Football — full 2026 season, iPhone wallpaper |
+| `output/widget-next.png` | Tigers medium widget — next 4 games |
+| `output/widget-<month>.png` | Tigers large widget — one per month |
+
+Data comes from MLB's Stats API and ESPN's public API. No keys, no accounts, no cost.
 
 ---
 
 ## How it works
 
 ```
-   GitHub Actions (7:00 AM ET daily)
-        |
-        |-- fetches the Tigers schedule + scores from MLB
-        |-- renders the current month's PNG
-        |-- commits it to this repo
+   GitHub Actions (5x daily)
+        |-- fetch Tigers schedule + scores from MLB
+        |-- fetch Michigan schedule, scores, ranks, TV from ESPN
+        |-- render the PNGs
+        |-- commit them back to this repo
         v
-   https://raw.githubusercontent.com/.../output/current.png
+   raw.githubusercontent.com/<you>/tigers-wallpaper/main/output/<file>.png
         |
-        v
-   iPhone Shortcut (7:15 AM) -> sets your wallpaper
+        +--> iPhone Shortcut  -> sets your wallpaper
+        +--> Scriptable widget -> home screen (refreshes on its own)
 ```
 
 ---
 
-## Setup — all in a browser (~15 min, once)
+## Setup
 
-You do **not** need Python or Git installed. Everything runs on GitHub.
+Everything below is done in a browser. No Python or Git needed locally.
 
-### 1. Create the repo
+### 1. Upload the files
 
-1. Sign in at https://github.com (a free account is fine).
-2. Click **+** (top right) → **New repository**.
-3. Name it `tigers-wallpaper`, set it to **Public**, click **Create repository**.
-   - Public matters: it's what lets your phone fetch the image without a login.
+In your `tigers-wallpaper` repo: **Add file → Upload files**, then drag in
+everything from this folder *except* the `output` folder (it gets created
+automatically). Commit.
 
-### 2. Upload these files
-
-1. On the new repo page, click **uploading an existing file**.
-2. Drag in **everything from this folder** — `render_wallpaper.py`, `requirements.txt`,
-   `.gitignore`, and the `assets` and `.github` folders.
-   - Dragging a folder brings its contents along, including `.github/workflows/daily.yml`.
-     That file is the scheduler — without it, nothing runs automatically.
-3. Click **Commit changes**.
-
-### 3. Turn the scheduler on and test it
-
-1. Go to the **Actions** tab. If it asks you to enable workflows, click the green button.
-2. Click **Daily Tigers wallpaper** in the left sidebar → **Run workflow** → **Run workflow**.
-3. Wait about a minute, then refresh. A green check means it worked.
-   - If it fails, click into the run to see the log and send me what it says.
-
-### 4. Confirm the image exists
-
-Open this in a browser (swap in your username):
+Your repo root should end up with:
 
 ```
-https://raw.githubusercontent.com/YOUR-USERNAME/tigers-wallpaper/main/output/current.png
+.github/workflows/daily.yml
+assets/fonts/
+assets/logos/          <- 30 MLB team logos
+assets/cfb-logos/      <- just MICH.png (the official block M)
+render_wallpaper.py
+render_widgets.py
+render_michigan.py
+requirements.txt
+Tigers-Widget.js
+.gitignore
+README.md
 ```
 
-You should see the wallpaper. **Copy this URL — the phone needs it.**
+Click into `.github` afterward and confirm you can reach `workflows/daily.yml`.
+If a browser drag flattened it, use **Add file → Create new file** and type the
+full path `.github/workflows/daily.yml` — the slashes rebuild the folders.
 
-From here on GitHub re-renders it every morning at 7:00 AM ET. Nothing else to do
-on a computer, ever.
+### 2. Run it once
 
-### 5. The iPhone Shortcut
+**Actions** tab → **Daily Tigers wallpaper** → **Run workflow** → **Run workflow**.
 
-1. Open **Shortcuts** → **+** → add two actions in this order:
-   - **Get Contents of URL** — paste the raw URL from step 4.
-   - **Set Wallpaper** — set its input to the output of *Get Contents of URL*.
-     Turn **off** "Show Preview" so it applies without a tap.
-2. Name it `Tigers Wallpaper`, then tap it once to test. Your lock screen should change.
-3. **Automation** tab → **+** → **Time of Day** → **7:15 AM** → **Daily** →
-   choose the shortcut → set it to **Run Immediately**, and turn off
-   **Notify When Run** if you don't want a daily banner.
+Wait about a minute and refresh. Green check = working. Click into the run to
+read the log — the Michigan step prints every game it parsed, which is the
+fastest way to spot a problem.
+
+### 3. Grab your URLs
+
+Swap in your GitHub username:
+
+```
+https://raw.githubusercontent.com/YOU/tigers-wallpaper/main/output/current.png
+https://raw.githubusercontent.com/YOU/tigers-wallpaper/main/output/michigan.png
+https://raw.githubusercontent.com/YOU/tigers-wallpaper/main/output/widget-next.png
+```
+
+Open each in a browser to confirm the image loads by itself on a blank page.
+
+### 4. iPhone Shortcut (wallpaper)
+
+1. **Shortcuts** → **+** → add two actions, in this order:
+   - **Get Contents of URL** — paste one of the URLs above
+   - **Set Wallpaper** — tap its input, choose **Contents of URL**
+2. Set it to **Lock Screen** only. *(Targeting Lock + Home rebuilds the iOS
+   wallpaper pair, which resets your home screen to a solid colour and wipes
+   your app icon appearance setting.)*
+3. Name it, tap once to test, allow the network prompt.
+4. **Automation** tab → **+** → **App** → pick an app you open every morning →
+   your shortcut → **Run Immediately**.
+
+   A *Time of Day* trigger also works, but iOS often won't complete a wallpaper
+   change while the phone is locked. An app trigger guarantees it's unlocked.
+
+To mirror it onto the home screen: **Settings → Wallpaper → Customize**
+(Home Screen) → **Pair**, and turn **Blur off**.
+
+### 5. Scriptable widget (optional)
+
+1. Install **Scriptable** (free, App Store)
+2. **+** → paste in `Tigers-Widget.js` → rename it *Tigers Widget*
+3. Long-press home screen → **+** → **Scriptable** → **Medium** → Add Widget
+4. Tap the widget → **Edit Widget** → Script = *Tigers Widget*, Parameter = blank
+
+For more pages, add more widgets and set the **Parameter** field:
+
+| Parameter | Shows | Widget size |
+|---|---|---|
+| *(blank)* | next 4 games | Medium |
+| `month` | month currently in play | Large |
+| `july`, `august`, `september` | that specific month | Large |
+
+Drag one onto another to make a swipeable stack.
+
+Widgets refresh in the background on their own — no automation needed.
 
 ---
 
-## What "fully automatic" really means
+## Notes
 
-The rendering side is 100% hands-off: GitHub is always on, so the image refreshes every
-morning whether your PC, your phone, or anything else is awake.
+**Timing.** GitHub's scheduled jobs run late under load — sometimes by hours.
+That's why the workflow fires five times a day (4:40, 6:40, 8:40, 10:40 AM and
+12:40 PM ET) instead of once. It only commits when an image actually changed.
 
-The one piece Apple controls is *applying* the image. iOS has gone back and forth on
-whether a Set Wallpaper automation may run silently. If yours insists on a confirmation
-tap, that's an iOS restriction rather than a broken setup — the fresh image is waiting
-either way, and you can run the Shortcut manually anytime.
+**Swapping a logo.** Drop a transparent PNG into `assets/logos/` (Tigers, named
+by abbreviation like `CLE.png`) or `assets/cfb-logos/` (Michigan, named by
+abbreviation or ESPN team id). Bundled files always beat the auto-downloaded
+version. Delete one to go back to the automatic logo.
 
----
+**Michigan opponent logos** download from ESPN at 500px and cache themselves in
+`assets/cfb-logos/` on the first run.
 
-## Maintenance
+**Troubleshooting Michigan.** If the ESPN data looks wrong, the Actions log
+prints each parsed game. For the full payload, change the Michigan step in
+`daily.yml` to `run: DEBUG_ESPN=1 python render_michigan.py`.
 
-Essentially none. Two things worth knowing:
+**Workflow paused?** GitHub suspends scheduled workflows after 60 days of repo
+inactivity. Open **Actions** and click **Enable workflow**.
 
-- **GitHub pauses scheduled workflows after 60 days of repo inactivity.** Daily commits
-  usually count as activity, but if updates ever stop, open the **Actions** tab and click
-  **Enable workflow**. Five seconds.
-- **To change the update time**, edit `.github/workflows/daily.yml` and adjust the
-  `cron` line. It's in UTC: `0 11 * * *` is 7:00 AM Eastern during daylight saving.
+**Changing update times.** Edit the `cron` lines in
+`.github/workflows/daily.yml`. They're UTC — ET is UTC−4 in summer, UTC−5 in
+winter.
 
----
-
-## Files
-
-| File | What it does |
-|------|--------------|
-| `.github/workflows/daily.yml` | The scheduler. Runs the renderer daily on GitHub. |
-| `render_wallpaper.py` | Fetches the schedule and draws the PNG. |
-| `requirements.txt` | Python packages GitHub installs automatically. |
-| `assets/logos/` | All 30 team logos, transparent. |
-| `assets/fonts/` | The typefaces used. |
-| `output/current.png` | The live wallpaper. This is what your phone pulls. |
-
-### Swapping a logo
-Drop a transparent PNG named for the team's abbreviation (`CLE.png`, `NYY.png`, …)
-into `assets/logos/` on GitHub. The next run picks it up.
-
-### Forcing a season
-The script defaults to the current calendar year. To pin one, set the environment
-variable `TIGERS_SEASON`.
+**Season year.** Both scripts default to the current calendar year. Override with
+the `TIGERS_SEASON` / `MICH_SEASON` environment variables.
