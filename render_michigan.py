@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Michigan Football schedule wallpaper (1290x2796), rendered from ESPN's public API.
+Michigan Football schedule wallpaper (1290x2796), rendered from the CollegeFootballData API.
 
 Shows every game on one page with: date, opponent logo + AP rank, home/away,
 kickoff time (ET) or final score with W/L, and the TV network. Header carries
 Michigan's own rank and overall / Big Ten records.
 
-No API key needed. Logos are pulled from ESPN's CDN and cached in assets/cfb-logos/.
+Needs a free CFBD API key in the CFBD_API_KEY environment variable
+(get one at https://collegefootballdata.com/key).
+Logos are cached in assets/cfb-logos/; drop a PNG there to override one.
 
     pip install pillow requests
     python render_michigan.py            # normal run
@@ -37,194 +39,134 @@ MAIZE = (255, 203, 5)       # Michigan maize
 WHITE = (255, 255, 255)
 DIM   = (150, 165, 185)
 
-API = "https://site.api.espn.com/apis/site/v2/sports/football/college-football"
-
-# ESPN sits behind Akamai and rejects requests that look automated. A complete,
-# realistic browser header set is what gets through.
-UA = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://www.espn.com/college-football/team/schedule/_/id/130",
-    "Origin": "https://www.espn.com",
-    "Connection": "keep-alive",
-    "sec-ch-ua": '"Chromium";v="126", "Not)A;Brand";v="24"',
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"Windows"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-site",
-}
-
 font = lambda n, s: ImageFont.truetype(os.path.join(FONTS, n), s)
 
+API      = "https://api.collegefootballdata.com"
+CFBD_KEY = os.environ.get("CFBD_API_KEY", "").strip()
+TEAM     = "Michigan"
 
-# ------------------------------------------------------------------ ESPN feed
-def _first(d, *path, default=None):
-    """Safely walk nested dicts/lists."""
-    cur = d
-    for p in path:
-        try:
-            cur = cur[p]
-        except (KeyError, IndexError, TypeError):
-            return default
-    return cur if cur is not None else default
+# ESPN team ids, used only to build logo URLs off their static CDN.
+ESPN_ID = {
+    "Western Michigan": "2711", "Oklahoma": "201", "UTEP": "2638", "Iowa": "2294",
+    "Minnesota": "135", "Penn State": "213", "Indiana": "84", "Rutgers": "164",
+    "Michigan State": "127", "Oregon": "2483", "UCLA": "26", "Ohio State": "194",
+    "Michigan": "130",
+}
 
 
-def _score(c):
-    s = c.get("score")
-    if isinstance(s, dict):
-        s = s.get("value", s.get("displayValue"))
+def _g(d, *names, default=None):
+    """CFBD has shipped both snake_case and camelCase. Accept either."""
+    for n in names:
+        if isinstance(d, dict) and d.get(n) is not None:
+            return d[n]
+    return default
+
+
+def _cfbd(path, **params):
+    if not CFBD_KEY:
+        raise RuntimeError("CFBD_API_KEY is not set")
+    r = requests.get(f"{API}{path}", params=params, timeout=30,
+                     headers={"Authorization": f"Bearer {CFBD_KEY}",
+                              "Accept": "application/json"})
+    if r.status_code == 401:
+        raise RuntimeError("CFBD rejected the API key (401) — check the secret")
+    if r.status_code == 429:
+        raise RuntimeError("CFBD monthly call limit reached (429)")
+    r.raise_for_status()
+    return r.json()
+
+
+def _ap_ranks(season):
+    """{school: rank} from the most recent AP Top 25. Empty in preseason."""
     try:
-        return int(float(s))
-    except (TypeError, ValueError):
-        return None
+        data = _cfbd("/rankings", year=season, seasonType="regular")
+    except Exception as e:
+        print(f"  ! rankings unavailable: {e}", file=sys.stderr)
+        return {}
+    best, out = -1, {}
+    for wk in data or []:
+        w = _g(wk, "week", default=0) or 0
+        for poll in _g(wk, "polls", default=[]) or []:
+            if "AP" not in str(_g(poll, "poll", default="")):
+                continue
+            if w >= best:
+                best = w
+                out = {_g(r, "school", "team"): _g(r, "rank")
+                       for r in (_g(poll, "ranks", default=[]) or [])}
+    if out:
+        print(f"  AP poll: week {best}, {len(out)} teams ranked")
+    return out
 
 
-def _rank(c):
-    r = _first(c, "curatedRank", "current")
+def _media(season):
+    """{(week, opponent): network} for TV listings."""
+    out = {}
     try:
-        r = int(r)
-    except (TypeError, ValueError):
-        return None
-    return r if 1 <= r <= 25 else None      # ESPN uses 99 for unranked
-
-
-def _network(comp):
-    for b in comp.get("broadcasts") or []:
-        n = _first(b, "media", "shortName") or _first(b, "names", 0) or b.get("shortName")
-        if n:
-            return str(n).upper()
-    for b in comp.get("geoBroadcasts") or []:
-        n = _first(b, "media", "shortName")
-        if n:
-            return str(n).upper()
-    return None
-
-
-def _fetch_one(season, seasontype):
-    """Try the API host, then ESPN's CDN host. Reports what each one did."""
-    import time
-    attempts = [
-        ("site.api", f"{API}/teams/{TEAM_ID}/schedule",
-         {"season": season, "seasontype": seasontype}),
-        ("cdn.core", "https://cdn.espn.com/core/college-football/schedule",
-         {"xhr": 1, "year": season, "seasontype": seasontype, "team": TEAM_ID}),
-    ]
-    last = None
-    for label, url, params in attempts:
-        for attempt in range(2):
-            try:
-                r = requests.get(url, params=params, headers=UA, timeout=30)
-                if r.status_code == 200:
-                    j = r.json()
-                    # the cdn host wraps things one level deeper
-                    if "events" not in j and isinstance(j.get("content"), dict):
-                        sch = j["content"].get("schedule") or {}
-                        evs = []
-                        if isinstance(sch, dict):
-                            for wk in sch.values():
-                                evs.extend((wk or {}).get("events") or [])
-                        elif isinstance(sch, list):
-                            evs = sch
-                        j = {"team": j["content"].get("team") or {}, "events": evs}
-                    print(f"    [{label}] 200 OK, {len(j.get('events') or [])} events")
-                    return j
-                print(f"    [{label}] HTTP {r.status_code}")
-                last = f"{label} HTTP {r.status_code}"
-                break
-            except Exception as e:
-                last = f"{label} {e}"
-                print(f"    [{label}] {type(e).__name__}: {e}")
-                time.sleep(1.5)
-    raise RuntimeError(last or "all hosts failed")
+        data = _cfbd("/games/media", year=season, team=TEAM, seasonType="both")
+    except Exception as e:
+        print(f"  ! media unavailable: {e}", file=sys.stderr)
+        return out
+    for m in data or []:
+        if str(_g(m, "mediaType", "media_type", default="")).lower() not in ("tv", "web", ""):
+            continue
+        gid = _g(m, "id", "gameId", "game_id")
+        outlet = _g(m, "outlet")
+        if gid and outlet and gid not in out:
+            out[gid] = str(outlet).upper()
+    return out
 
 
 def fetch_schedule(season):
-    # ESPN defaults to seasontype=1 (preseason), which is EMPTY for college
-    # football. 2 = regular season, 3 = postseason/bowls. Merge both so a bowl
-    # or playoff game shows up automatically once it's scheduled.
-    data = None
-    events = []
-    for st in (2, 3):
-        try:
-            d = _fetch_one(season, st)
-        except Exception as e:
-            print(f"  ! seasontype={st} fetch failed: {e}", file=sys.stderr)
-            continue
-        if data is None or (d.get("events") and not data.get("events")):
-            data = d if data is None else data
-        if data is None:
-            data = d
-        evs = d.get("events") or []
-        print(f"  seasontype={st}: {len(evs)} events")
-        events.extend(evs)
-    if data is None:
-        raise RuntimeError("no response from ESPN")
-
-    team = data.get("team") or {}
-    me = {
-        "abbrev": team.get("abbreviation", "MICH"),
-        "logo":   team.get("logo") or _first(team, "logos", 0, "href"),
-        "record": team.get("recordSummary") or "0-0",
-        "conf":   team.get("standingSummary") or "",
-    }
+    games_raw = _cfbd("/games", year=season, team=TEAM, seasonType="both")
+    print(f"  /games returned {len(games_raw or [])} games")
+    ranks = _ap_ranks(season)
+    tv = _media(season)
 
     games = []
-    seen = set()
-    for ev in events:
-        comp = _first(ev, "competitions", 0, default={})
-        comps = comp.get("competitors") or []
-        us = next((c for c in comps if str(_first(c, "team", "id")) == str(TEAM_ID)), None)
-        them = next((c for c in comps if c is not us), None)
-        if not us or not them:
+    for gm in games_raw or []:
+        home_team = _g(gm, "homeTeam", "home_team", default="")
+        away_team = _g(gm, "awayTeam", "away_team", default="")
+        is_home = home_team == TEAM
+        opp = away_team if is_home else home_team
+        if opp is None:
             continue
-        key = ev.get("id") or comp.get("id")
-        if key in seen:
+
+        raw = _g(gm, "startDate", "start_date")
+        if not raw:
             continue
-        seen.add(key)
+        start = dt.datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(ET)
+        tbd = bool(_g(gm, "startTimeTbd", "start_time_tbd", default=False))
 
-        start = dt.datetime.fromisoformat(
-            (comp.get("date") or ev.get("date")).replace("Z", "+00:00")).astimezone(ET)
-        state = _first(comp, "status", "type", "name", default="STATUS_SCHEDULED")
-        final = state == "STATUS_FINAL" or bool(_first(comp, "status", "type", "completed"))
-
-        us_s, them_s = _score(us), _score(them)
+        us_pts   = _g(gm, "homePoints", "home_points") if is_home else _g(gm, "awayPoints", "away_points")
+        them_pts = _g(gm, "awayPoints", "away_points") if is_home else _g(gm, "homePoints", "home_points")
+        completed = bool(_g(gm, "completed", default=False))
         res = None
-        if final and us_s is not None and them_s is not None:
-            res = "W" if us_s > them_s else ("L" if us_s < them_s else "T")
+        if completed and us_pts is not None and them_pts is not None:
+            res = "W" if us_pts > them_pts else ("L" if us_pts < them_pts else "T")
 
-        # ESPN writes "9/5 - TBD" in shortDetail when kickoff isn't announced yet
-        detail = str(_first(comp, "status", "type", "shortDetail", default="")).upper()
-        time_known = "TBD" not in detail
-
-        opp_team = them.get("team") or {}
+        eid = ESPN_ID.get(opp, "")
         games.append({
-            "date":    start.date(),
-            "dt":      start,
-            "time":    start.strftime("%-I:%M").lstrip("0") if time_known else "TBD",
-            "ampm":    start.strftime("%p") if time_known else "",
-            "opp":     opp_team.get("abbreviation") or opp_team.get("shortDisplayName") or "?",
-            "opp_name": (opp_team.get("shortDisplayName") or opp_team.get("location")
-                         or opp_team.get("displayName") or "?"),
-            "opp_id":  str(opp_team.get("id") or ""),
-            "opp_logo": _first(opp_team, "logos", 0, "href"),
-            "opp_rank": _rank(them),
-            "my_rank": _rank(us),
-            "home":    us.get("homeAway") == "home",
-            "neutral": bool(comp.get("neutralSite")),
-            "tv":      _network(comp),
-            "conf_game": bool(comp.get("conferenceCompetition")),
-            "final":   final,
-            "res":     res,
-            "us":      us_s,
-            "them":    them_s,
+            "date": start.date(), "dt": start,
+            "time": "TBD" if tbd else start.strftime("%-I:%M"),
+            "ampm": "" if tbd else start.strftime("%p"),
+            "opp": (opp or "?")[:4].upper(), "opp_name": opp, "opp_id": eid or opp,
+            "opp_logo": (f"https://a.espncdn.com/i/teamlogos/ncaa/500/{eid}.png"
+                         if eid else None),
+            "opp_rank": ranks.get(opp), "my_rank": ranks.get(TEAM),
+            "home": is_home,
+            "neutral": bool(_g(gm, "neutralSite", "neutral_site", default=False)),
+            "tv": tv.get(_g(gm, "id")),
+            "conf_game": bool(_g(gm, "conferenceGame", "conference_game", default=False)),
+            "final": completed, "res": res, "us": us_pts, "them": them_pts,
         })
 
     games.sort(key=lambda g: g["dt"])
+    w = sum(1 for g in games if g["res"] == "W")
+    l = sum(1 for g in games if g["res"] == "L")
+    me = {"abbrev": "MICH",
+          "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/130.png",
+          "record": f"{w}-{l}", "conf": ""}
     return me, games
-
 
 
 # --------------------------------------------------------- offline fallback
@@ -257,7 +199,7 @@ def static_schedule(season):
         else:
             t, ap = "TBD", ""
         games.append({
-            "date": date, "dt": dt.datetime.combine(date, dt.time(12), ET),
+            "date": date, "dt": dt.datetime.combine(date, dt.time(12)).replace(tzinfo=ET),
             "time": t, "ampm": ap,
             "opp": name[:4].upper(), "opp_name": name, "opp_id": eid,
             "opp_logo": f"https://a.espncdn.com/i/teamlogos/ncaa/500/{eid}.png",
@@ -529,12 +471,12 @@ def main():
         if not games:
             raise RuntimeError("ESPN returned zero games")
     except Exception as e:
-        print(f"!! ESPN unavailable ({e})", file=sys.stderr)
+        print(f"!! CFBD unavailable ({e})", file=sys.stderr)
         print("!! Falling back to the bundled 2026 schedule "
               "(no live scores, ranks or TV).", file=sys.stderr)
         me, games = static_schedule(SEASON)
         live = False
-    print("DATA SOURCE:", "ESPN (live)" if live else "bundled static schedule")
+    print("DATA SOURCE:", "CFBD (live)" if live else "bundled static schedule")
 
     logos = {"MICH": get_logo("MICH", me["logo"])}
     for g in games:
