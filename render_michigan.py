@@ -274,8 +274,11 @@ SHORT = {
 # Layout is built around two things: iOS zooms wallpapers (~1.18x), and the
 # home screen has apps on it. Everything lives in a compact central band with
 # fat margins, so a zoom crop eats empty space instead of content.
-SAFE_X0, SAFE_X1 = 85, 1205      # keep content well inside the horizontal crop
-BAND_TOP, BAND_BOT = 715, 1710   # the gap between the top widget and the app row
+# iOS zooms Shortcut-set wallpapers (measured 1.18x-1.5x on Ty's phone) and the
+# crop anchor is not stable. So all content lives in a central box with a wide
+# blue margin around it — the zoom eats padding instead of games.
+SAFE_X0, SAFE_X1 = 190, 1100
+BAND_TOP, BAND_BOT = 848, 1656
 
 
 def backdrop(mich_logo):
@@ -295,8 +298,8 @@ def backdrop(mich_logo):
                 px[x + 1, y] = c
     img = bg.filter(ImageFilter.GaussianBlur(4)).convert("RGBA")
     if mich_logo:
-        gh = fade(fit(mich_logo, 760, 760), 30)   # sits behind the app icons
-        img.alpha_composite(gh, ((W - gh.width) // 2, 1860))
+        gh = fade(fit(mich_logo, 620, 620), 30)   # sits behind the app icons
+        img.alpha_composite(gh, ((W - gh.width) // 2, 1830))
     return img
 
 
@@ -310,14 +313,14 @@ def build(me, games, logos):
     today = dt.date.today()
 
     # ---------------------------------------------------------- header
-    mf = font("BigShoulders-Bold.ttf", 92)
+    mf = font("BigShoulders-Bold.ttf", 74)
     bb = d.textbbox((0, 0), "MICHIGAN", font=mf)
     d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP), "MICHIGAN", font=mf,
            fill=MAIZE + (255,))
-    yf = font("GeistMono-Bold.ttf", 24)
+    yf = font("GeistMono-Bold.ttf", 21)
     sub = f"F O O T B A L L   {SEASON}"
     bb = d.textbbox((0, 0), sub, font=yf)
-    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 88), sub,
+    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 70), sub,
            font=yf, fill=(255, 255, 255, 165))
 
     my_rank = next((g["my_rank"] for g in games if g["my_rank"]), None)
@@ -325,26 +328,26 @@ def build(me, games, logos):
     cl_ = sum(1 for g in games if g["conf_game"] and g["res"] == "L")
     bits = f"{me['record']}  OVERALL     {cw_}-{cl_}  BIG TEN     " + \
            (f"#{my_rank}  AP" if my_rank else "NR")
-    rf = font("GeistMono-Bold.ttf", 27)
+    rf = font("GeistMono-Bold.ttf", 24)
     bb = d.textbbox((0, 0), bits, font=rf)
-    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 126), bits,
+    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 102), bits,
            font=rf, fill=(255, 255, 255, 235))
 
     # ---------------------------------------------------------- game grid
-    GTOP = BAND_TOP + 180
+    GTOP = BAND_TOP + 140
     COLS, CGAP, RGAP = 2, 24, 12
     CW_ = (SAFE_X1 - SAFE_X0 - CGAP) // COLS
     n = len(games)
     per = (n + COLS - 1) // COLS
-    CH_ = min(132, (BAND_BOT - GTOP - (per - 1) * RGAP) // max(1, per))
+    CH_ = min(112, (BAND_BOT - GTOP - (per - 1) * RGAP) // max(1, per))
 
-    date_f = font("GeistMono-Bold.ttf", 23)
-    name_f = font("BigShoulders-Bold.ttf", 44)
-    rank_f = font("GeistMono-Bold.ttf", 23)
-    va_f   = font("GeistMono-Bold.ttf", 19)
-    time_f = font("BigShoulders-Bold.ttf", 38)
-    tv_f   = font("GeistMono-Regular.ttf", 18)
-    res_f  = font("GeistMono-Bold.ttf", 30)
+    date_f = font("GeistMono-Bold.ttf", 20)
+    name_f = font("BigShoulders-Bold.ttf", 38)
+    rank_f = font("GeistMono-Bold.ttf", 20)
+    va_f   = font("GeistMono-Bold.ttf", 17)
+    time_f = font("BigShoulders-Bold.ttf", 33)
+    tv_f   = font("GeistMono-Regular.ttf", 16)
+    res_f  = font("GeistMono-Bold.ttf", 26)
 
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
@@ -362,10 +365,10 @@ def build(me, games, logos):
                              fill=(MAIZE if g["home"] else (165, 180, 200)) + (a,))
 
         ds = f"{MON[g['date'].month]} {g['date'].day}"
-        ld.text((x + 24, y + 13), ds, font=date_f, fill=(255, 255, 255, int(a * 0.75)))
+        ld.text((x + 21, y + 11), ds, font=date_f, fill=(255, 255, 255, int(a * 0.75)))
 
         # right side: result or kickoff
-        rx = x + CW_ - 20
+        rx = x + CW_ - 17
         if g["final"] and g["res"]:
             txt = f"{g['res']} {g['us']}-{g['them']}"
             bb = ld.textbbox((0, 0), txt, font=res_f)
@@ -383,16 +386,16 @@ def build(me, games, logos):
 
         # logo + opponent
         lg = logos.get(g["opp_id"])
-        ly = y + CH_ - 66
+        ly = y + CH_ - 58
         if lg:
-            box = 52
+            box = 44
             l2 = fade(fit(lg, box, box), a)
-            layer.alpha_composite(l2, (x + 26 + (box - l2.width) // 2,
-                                       ly + (52 - l2.height) // 2))
-        tx = x + 90
+            layer.alpha_composite(l2, (x + 20 + (box - l2.width) // 2,
+                                       ly + (44 - l2.height) // 2))
+        tx = x + 74
         va = "AT" if (not g["home"] and not g["neutral"]) else "VS"
         ld.text((tx, ly + 16), va, font=va_f, fill=(255, 255, 255, int(a * 0.6)))
-        tx += 38
+        tx += 32
         if g["opp_rank"]:
             rk = f"#{g['opp_rank']}"
             ld.text((tx, ly + 14), rk, font=rank_f, fill=MAIZE + (a,))
@@ -411,7 +414,7 @@ def build(me, games, logos):
     ff = font("GeistMono-Regular.ttf", 19)
     foot = "MAIZE = HOME     ALL TIMES ET     BYE OCT 10"
     bb = d2.textbbox((0, 0), foot, font=ff)
-    d2.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_BOT + 14), foot,
+    d2.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_BOT + 12), foot,
             font=ff, fill=(255, 255, 255, 120))
     return img.convert("RGB")
 
