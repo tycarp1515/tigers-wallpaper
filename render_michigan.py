@@ -266,25 +266,37 @@ def fade(im, a):
 
 
 # -------------------------------------------------------------------- render
+SHORT = {
+    "Western Michigan": "W. MICHIGAN", "Michigan State": "MICHIGAN ST",
+    "Penn State": "PENN STATE", "Ohio State": "OHIO STATE",
+}
+
+# Layout is built around two things: iOS zooms wallpapers (~1.18x), and the
+# home screen has apps on it. Everything lives in a compact central band with
+# fat margins, so a zoom crop eats empty space instead of content.
+SAFE_X0, SAFE_X1 = 85, 1205      # keep content well inside the horizontal crop
+BAND_TOP, BAND_BOT = 715, 1710   # the gap between the top widget and the app row
+
+
 def backdrop(mich_logo):
-    bg = Image.new("RGB", (W, H), (3, 8, 16))
+    """Solid Michigan blue with a soft vignette — no bright centre."""
+    bg = Image.new("RGB", (W, H), BLUE)
     px = bg.load()
-    cx, cy = W * 0.5, H * 0.30
+    cx, cy = W * 0.5, H * 0.44
     for y in range(H):
         for x in range(0, W, 2):
-            g = max(0.0, 1.0 - math.hypot((x - cx) / (W * 1.15), (y - cy) / (H * 0.62))) ** 1.6
-            m = max(0.0, 1.0 - math.hypot((x - cx) / (W * 0.75), (y - H * 0.99) / (H * 0.20))) ** 2.8
-            c = (min(255, int(3 + BLUE[0] * g * 2.7 + MAIZE[0] * m * 0.10)),
-                 min(255, int(8 + BLUE[1] * g * 2.7 + MAIZE[1] * m * 0.10)),
-                 min(255, int(16 + BLUE[2] * g * 2.7 + MAIZE[2] * m * 0.10)))
+            d = math.hypot((x - cx) / (W * 0.95), (y - cy) / (H * 0.72))
+            k = max(0.0, min(1.0, (d - 0.45) * 0.95))          # darken outward
+            c = (int(BLUE[0] * (1 - k) + 2 * k),
+                 int(BLUE[1] * (1 - k) + 10 * k),
+                 int(BLUE[2] * (1 - k) + 24 * k))
             px[x, y] = c
             if x + 1 < W:
                 px[x + 1, y] = c
-    img = bg.filter(ImageFilter.GaussianBlur(3)).convert("RGBA")
+    img = bg.filter(ImageFilter.GaussianBlur(4)).convert("RGBA")
     if mich_logo:
-        gh = fade(fit(mich_logo, 340, 340), 26)
-        for gx, gy in [(-110, 40), (1060, 250), (-90, 2320)]:
-            img.alpha_composite(gh, (gx, gy))
+        gh = fade(fit(mich_logo, 760, 760), 30)   # sits behind the app icons
+        img.alpha_composite(gh, ((W - gh.width) // 2, 1860))
     return img
 
 
@@ -295,171 +307,112 @@ MON = ["", "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
 def build(me, games, logos):
     img = backdrop(logos.get("MICH"))
     d = ImageDraw.Draw(img)
+    today = dt.date.today()
 
-    # ---- header ---------------------------------------------------------
-    mf = font("BigShoulders-Bold.ttf", 178)
+    # ---------------------------------------------------------- header
+    mf = font("BigShoulders-Bold.ttf", 92)
     bb = d.textbbox((0, 0), "MICHIGAN", font=mf)
-    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], 560), "MICHIGAN", font=mf,
-           fill=(0, 0, 0, 0), stroke_width=5, stroke_fill=MAIZE + (215,))
-    sf = font("GeistMono-Bold.ttf", 34)
+    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP), "MICHIGAN", font=mf,
+           fill=MAIZE + (255,))
+    yf = font("GeistMono-Bold.ttf", 24)
     sub = f"F O O T B A L L   {SEASON}"
-    bb = d.textbbox((0, 0), sub, font=sf)
-    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], 742), sub, font=sf, fill=(255, 255, 255, 190))
+    bb = d.textbbox((0, 0), sub, font=yf)
+    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 88), sub,
+           font=yf, fill=(255, 255, 255, 165))
 
-    # ---- stat strip: overall / big ten / rank ---------------------------
     my_rank = next((g["my_rank"] for g in games if g["my_rank"]), None)
-    cw = sum(1 for g in games if g["conf_game"] and g["res"] == "W")
-    cl = sum(1 for g in games if g["conf_game"] and g["res"] == "L")
-    conf_rec = f"{cw}-{cl}"
-    stats = [(me["record"], "OVERALL"), (conf_rec, "BIG TEN"),
-             (f"#{my_rank}" if my_rank else "NR", "AP RANK")]
-    nf, lf = font("BigShoulders-Bold.ttf", 82), font("GeistMono-Regular.ttf", 22)
-    colw = 340
-    x0 = (W - colw * len(stats)) // 2
-    for i, (val, lab) in enumerate(stats):
-        cx = x0 + i * colw + colw // 2
-        bb = d.textbbox((0, 0), val, font=nf)
-        d.text((cx - (bb[2] - bb[0]) // 2 - bb[0], 812), val, font=nf, fill=WHITE + (255,))
-        bb = d.textbbox((0, 0), lab, font=lf)
-        d.text((cx - (bb[2] - bb[0]) // 2 - bb[0], 902), lab, font=lf, fill=DIM + (215,))
-        if i:
-            d.line([(x0 + i * colw, 822), (x0 + i * colw, 916)], fill=(255, 255, 255, 45), width=2)
+    cw_ = sum(1 for g in games if g["conf_game"] and g["res"] == "W")
+    cl_ = sum(1 for g in games if g["conf_game"] and g["res"] == "L")
+    bits = f"{me['record']}  OVERALL     {cw_}-{cl_}  BIG TEN     " + \
+           (f"#{my_rank}  AP" if my_rank else "NR")
+    rf = font("GeistMono-Bold.ttf", 27)
+    bb = d.textbbox((0, 0), bits, font=rf)
+    d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP + 126), bits,
+           font=rf, fill=(255, 255, 255, 235))
 
-    # ---- game rows ------------------------------------------------------
-    M, TOP = 78, 990
-    RW = W - 2 * M
-    rows = len(games) + 1                       # +1 for the bye week
-    RH = min(112, (2440 - TOP - (rows - 1) * 9) // max(1, rows))
-    GAP = 9
+    # ---------------------------------------------------------- game grid
+    GTOP = BAND_TOP + 180
+    COLS, CGAP, RGAP = 2, 24, 12
+    CW_ = (SAFE_X1 - SAFE_X0 - CGAP) // COLS
+    n = len(games)
+    per = (n + COLS - 1) // COLS
+    CH_ = min(132, (BAND_BOT - GTOP - (per - 1) * RGAP) // max(1, per))
 
-    date_f  = font("GeistMono-Bold.ttf", 25)
-    name_f  = font("BigShoulders-Bold.ttf", 54)
-    rank_f  = font("GeistMono-Bold.ttf", 26)
-    va_f    = font("GeistMono-Bold.ttf", 23)
-    time_f  = font("BigShoulders-Bold.ttf", 44)
-    tv_f    = font("GeistMono-Regular.ttf", 21)
-    res_f   = font("BigShoulders-Bold.ttf", 50)
+    date_f = font("GeistMono-Bold.ttf", 23)
+    name_f = font("BigShoulders-Bold.ttf", 44)
+    rank_f = font("GeistMono-Bold.ttf", 23)
+    va_f   = font("GeistMono-Bold.ttf", 19)
+    time_f = font("BigShoulders-Bold.ttf", 38)
+    tv_f   = font("GeistMono-Regular.ttf", 18)
+    res_f  = font("GeistMono-Bold.ttf", 30)
 
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
-    today = dt.date.today()
 
-    # find the bye: the gap between consecutive games longer than 8 days
-    bye_after = None
-    for a, b in zip(games, games[1:]):
-        if (b["date"] - a["date"]).days > 10:
-            bye_after = a["date"]
-            break
+    for i, g in enumerate(games):
+        col, row = divmod(i, per)          # column-major: each column reads down
+        x = SAFE_X0 + col * (CW_ + CGAP)
+        y = GTOP + row * (CH_ + RGAP)
+        a = 135 if g["final"] else 255
 
-    y = TOP
-    drawn = 0
-    for g in games:
-        a = 130 if g["final"] else 255
-        ld.rounded_rectangle([M, y, M + RW, y + RH], radius=8,
-                             fill=(255, 255, 255, 12),
-                             outline=(255, 255, 255, int(a * 0.30)), width=2)
-        # home/away edge stripe
-        ld.rounded_rectangle([M, y, M + 9, y + RH], radius=4,
-                             fill=(MAIZE if g["home"] else (170, 185, 205)) + (a,))
+        ld.rounded_rectangle([x, y, x + CW_, y + CH_], radius=10,
+                             fill=(255, 255, 255, 16),
+                             outline=(255, 255, 255, int(a * 0.28)), width=2)
+        ld.rounded_rectangle([x, y, x + 8, y + CH_], radius=4,
+                             fill=(MAIZE if g["home"] else (165, 180, 200)) + (a,))
 
-        # date
         ds = f"{MON[g['date'].month]} {g['date'].day}"
-        ld.text((M + 26, y + RH // 2 - 15), ds, font=date_f, fill=(WHITE if not g["final"] else DIM) + (a,))
+        ld.text((x + 24, y + 13), ds, font=date_f, fill=(255, 255, 255, int(a * 0.75)))
 
-        # opponent logo
-        lg = logos.get(g["opp_id"])
-        lx = M + 152
-        if lg:
-            box = int(RH * 0.66)
-            l2 = fade(fit(lg, box, box), a)
-            if is_dark(l2):
-                glow = Image.new("RGBA", l2.size, (255, 255, 255, 0))
-                glow.putalpha(l2.getchannel("A").point(lambda v: int(v * 0.55)))
-                gb = glow.filter(ImageFilter.GaussianBlur(9))
-                layer.alpha_composite(gb, (lx, y + (RH - l2.height) // 2))
-            layer.alpha_composite(l2, (lx + (box - l2.width) // 2, y + (RH - l2.height) // 2))
-
-        # vs/at + rank + name
-        tx = M + 246
-        va = "AT" if (not g["home"] and not g["neutral"]) else ("VS" if g["home"] else "N")
-        ld.text((tx, y + RH // 2 - 26), va, font=va_f, fill=(DIM) + (a,))
-        tx += 46
-        if g["opp_rank"]:
-            rk = f"#{g['opp_rank']}"
-            ld.text((tx, y + RH // 2 - 25), rk, font=rank_f, fill=MAIZE + (a,))
-            bb = ld.textbbox((0, 0), rk, font=rank_f)
-            tx += (bb[2] - bb[0]) + 12
-        nm = g["opp_name"].upper()
-        ld.text((tx, y + RH // 2 - 36), nm, font=name_f, fill=WHITE + (a,))
-
-        # right block: result or time+tv
-        rx = M + RW - 24
+        # right side: result or kickoff
+        rx = x + CW_ - 20
         if g["final"] and g["res"]:
-            sc = f"{g['us']}-{g['them']}"
-            bb = ld.textbbox((0, 0), sc, font=res_f)
-            ld.text((rx - (bb[2] - bb[0]) - bb[0], y + RH // 2 - 32), sc, font=res_f,
-                    fill=WHITE + (a,))
-            badge = g["res"]
-            bw2 = 42
-            bx = rx - (bb[2] - bb[0]) - bw2 - 20
-            col = MAIZE if badge == "W" else (150, 60, 60)
-            ld.rounded_rectangle([bx, y + RH // 2 - 26, bx + bw2, y + RH // 2 + 22],
-                                 radius=6, fill=col + (235,))
-            bf = font("BigShoulders-Bold.ttf", 40)
-            bb2 = ld.textbbox((0, 0), badge, font=bf)
-            ld.text((bx + (bw2 - (bb2[2] - bb2[0])) // 2 - bb2[0], y + RH // 2 - 30),
-                    badge, font=bf, fill=(BLUE if badge == "W" else WHITE) + (255,))
+            txt = f"{g['res']} {g['us']}-{g['them']}"
+            bb = ld.textbbox((0, 0), txt, font=res_f)
+            ld.text((rx - (bb[2] - bb[0]) - bb[0], y + 10), txt, font=res_f,
+                    fill=(MAIZE if g["res"] == "W" else (235, 150, 150)) + (255,))
         else:
             t = g["time"] if g["time"] == "TBD" else f"{g['time']} {g['ampm']}"
             bb = ld.textbbox((0, 0), t, font=time_f)
-            ld.text((rx - (bb[2] - bb[0]) - bb[0], y + RH // 2 - 34), t, font=time_f,
-                    fill=WHITE + (230,))
-            tv = g["tv"] or ""
-            if tv:
-                bb = ld.textbbox((0, 0), tv, font=tv_f)
-                ld.text((rx - (bb[2] - bb[0]) - bb[0], y + RH // 2 + 10), tv,
-                        font=tv_f, fill=MAIZE + (200,))
+            ld.text((rx - (bb[2] - bb[0]) - bb[0], y + 6), t, font=time_f,
+                    fill=(255, 255, 255, 240))
+            if g["tv"]:
+                bb = ld.textbbox((0, 0), g["tv"], font=tv_f)
+                ld.text((rx - (bb[2] - bb[0]) - bb[0], y + 50), g["tv"],
+                        font=tv_f, fill=MAIZE + (215,))
+
+        # logo + opponent
+        lg = logos.get(g["opp_id"])
+        ly = y + CH_ - 66
+        if lg:
+            box = 52
+            l2 = fade(fit(lg, box, box), a)
+            layer.alpha_composite(l2, (x + 26 + (box - l2.width) // 2,
+                                       ly + (52 - l2.height) // 2))
+        tx = x + 90
+        va = "AT" if (not g["home"] and not g["neutral"]) else "VS"
+        ld.text((tx, ly + 16), va, font=va_f, fill=(255, 255, 255, int(a * 0.6)))
+        tx += 38
+        if g["opp_rank"]:
+            rk = f"#{g['opp_rank']}"
+            ld.text((tx, ly + 14), rk, font=rank_f, fill=MAIZE + (a,))
+            tx += ld.textbbox((0, 0), rk, font=rank_f)[2] + 9
+        nm = SHORT.get(g["opp_name"], g["opp_name"]).upper()
+        ld.text((tx, ly + 3), nm, font=name_f, fill=(255, 255, 255, a))
 
         if g["date"] == today:
-            ld.rounded_rectangle([M - 5, y - 5, M + RW + 5, y + RH + 5], radius=10,
-                                 outline=MAIZE + (240,), width=3)
-        y += RH + GAP
-        drawn += 1
-
-        if bye_after and g["date"] == bye_after:
-            bh = int(RH * 0.44)
-            ld.line([(M + 30, y + bh // 2), (M + RW - 30, y + bh // 2)],
-                    fill=(255, 255, 255, 30), width=2)
-            bf2 = font("GeistMono-Regular.ttf", 21)
-            lab = "  B Y E   W E E K  "
-            bb = ld.textbbox((0, 0), lab, font=bf2)
-            lw = bb[2] - bb[0]
-            ld.rectangle([(W - lw) // 2 - 10, y + bh // 2 - 15, (W + lw) // 2 + 10, y + bh // 2 + 17],
-                         fill=(6, 14, 28, 255))
-            ld.text(((W - lw) // 2 - bb[0], y + bh // 2 - 12), lab, font=bf2, fill=DIM + (190,))
-            y += bh + GAP
+            ld.rounded_rectangle([x - 4, y - 4, x + CW_ + 4, y + CH_ + 4],
+                                 radius=12, outline=MAIZE + (245,), width=3)
 
     img = Image.alpha_composite(img, layer)
 
-    # ---- footer ---------------------------------------------------------
+    # ---------------------------------------------------------- footer
     d2 = ImageDraw.Draw(img)
-    ff = font("GeistMono-Regular.ttf", 22)
-    foot = "A L L   T I M E S   E T"
+    ff = font("GeistMono-Regular.ttf", 19)
+    foot = "MAIZE = HOME     ALL TIMES ET     BYE OCT 10"
     bb = d2.textbbox((0, 0), foot, font=ff)
-    d2.text(((W - (bb[2] - bb[0])) // 2 - bb[0], min(y + 16, 2500)), foot,
-            font=ff, fill=(255, 255, 255, 100))
-
-    ml = logos.get("MICH")
-    if ml:
-        hero = fit(ml, 190, 190)
-        hy = min(y + 60, 2545)
-        glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        gg = Image.new("RGBA", hero.size, (255, 210, 60, 0))
-        gg.putalpha(hero.getchannel("A").point(lambda v: int(v * 0.5)))
-        glow.alpha_composite(gg, ((W - hero.width) // 2, hy))
-        img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(30)))
-        img.alpha_composite(hero, ((W - hero.width) // 2, hy))
-
+    d2.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_BOT + 14), foot,
+            font=ff, fill=(255, 255, 255, 120))
     return img.convert("RGB")
 
 
