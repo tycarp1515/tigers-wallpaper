@@ -281,24 +281,52 @@ SAFE_X0, SAFE_X1 = 190, 1100
 BAND_TOP, BAND_BOT = 848, 1656
 
 
+BG_IMAGE = os.path.join(HERE, "assets", "bg-michigan.png")
+
+
 def backdrop(mich_logo):
-    """Solid Michigan blue with a soft vignette — no bright centre."""
+    """Stadium photo if bundled, otherwise solid Michigan blue."""
+    if os.path.exists(BG_IMAGE):
+        ph = Image.open(BG_IMAGE).convert("RGB")
+        # Scale past "fill" and anchor to the top, so the sunset stays up high
+        # and the stadium drops below the schedule instead of hiding behind it.
+        s = max(W / ph.width, H / ph.height) * 1.20
+        ph = ph.resize((int(ph.width * s) + 1, int(ph.height * s) + 1), Image.LANCZOS)
+        ox = (ph.width - W) // 2
+        ph = ph.crop((ox, 0, ox + W, H))
+        img = ph.convert("RGBA")
+
+        # Cool the photo toward Michigan blue and knock it back so text wins.
+        tint = Image.new("RGBA", (W, H), BLUE + (105,))
+        img = Image.alpha_composite(img, tint)
+        img = Image.alpha_composite(img, Image.new("RGBA", (W, H), (0, 0, 0, 70)))
+
+        # Extra scrim behind the schedule band, faded at both edges.
+        scrim = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(scrim)
+        top, bot = BAND_TOP - 110, BAND_BOT + 90
+        for y in range(top, bot):
+            t = (y - top) / max(1, bot - top)
+            edge = min(1.0, min(t, 1 - t) * 7)         # soft top/bottom falloff
+            sd.line([(0, y), (W, y)], fill=(2, 10, 24, int(150 * edge)))
+        img = Image.alpha_composite(img, scrim.filter(ImageFilter.GaussianBlur(6)))
+        return img
+
     bg = Image.new("RGB", (W, H), BLUE)
     px = bg.load()
     cx, cy = W * 0.5, H * 0.44
     for y in range(H):
         for x in range(0, W, 2):
             d = math.hypot((x - cx) / (W * 0.95), (y - cy) / (H * 0.72))
-            k = max(0.0, min(1.0, (d - 0.45) * 0.95))          # darken outward
-            c = (int(BLUE[0] * (1 - k) + 2 * k),
-                 int(BLUE[1] * (1 - k) + 10 * k),
+            k = max(0.0, min(1.0, (d - 0.45) * 0.95))
+            c = (int(BLUE[0] * (1 - k) + 2 * k), int(BLUE[1] * (1 - k) + 10 * k),
                  int(BLUE[2] * (1 - k) + 24 * k))
             px[x, y] = c
             if x + 1 < W:
                 px[x + 1, y] = c
     img = bg.filter(ImageFilter.GaussianBlur(4)).convert("RGBA")
     if mich_logo:
-        gh = fade(fit(mich_logo, 620, 620), 30)   # sits behind the app icons
+        gh = fade(fit(mich_logo, 620, 620), 30)
         img.alpha_composite(gh, ((W - gh.width) // 2, 1830))
     return img
 
@@ -313,7 +341,7 @@ def build(me, games, logos):
     today = dt.date.today()
 
     # ---------------------------------------------------------- header
-    mf = font("BigShoulders-Bold.ttf", 74)
+    mf = font("BigShoulders-Bold.ttf", 84)
     bb = d.textbbox((0, 0), "MICHIGAN", font=mf)
     d.text(((W - (bb[2] - bb[0])) // 2 - bb[0], BAND_TOP), "MICHIGAN", font=mf,
            fill=MAIZE + (255,))
@@ -341,13 +369,13 @@ def build(me, games, logos):
     per = (n + COLS - 1) // COLS
     CH_ = min(112, (BAND_BOT - GTOP - (per - 1) * RGAP) // max(1, per))
 
-    date_f = font("GeistMono-Bold.ttf", 20)
-    name_f = font("BigShoulders-Bold.ttf", 38)
-    rank_f = font("GeistMono-Bold.ttf", 20)
+    date_f = font("GeistMono-Bold.ttf", 22)
+    name_f = font("BigShoulders-Bold.ttf", 47)
+    rank_f = font("GeistMono-Bold.ttf", 22)
     va_f   = font("GeistMono-Bold.ttf", 17)
-    time_f = font("BigShoulders-Bold.ttf", 33)
-    tv_f   = font("GeistMono-Regular.ttf", 16)
-    res_f  = font("GeistMono-Bold.ttf", 26)
+    time_f = font("BigShoulders-Bold.ttf", 40)
+    tv_f   = font("GeistMono-Regular.ttf", 17)
+    res_f  = font("GeistMono-Bold.ttf", 31)
 
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
@@ -358,10 +386,7 @@ def build(me, games, logos):
         y = GTOP + row * (CH_ + RGAP)
         a = 135 if g["final"] else 255
 
-        ld.rounded_rectangle([x, y, x + CW_, y + CH_], radius=10,
-                             fill=(255, 255, 255, 16),
-                             outline=(255, 255, 255, int(a * 0.28)), width=2)
-        ld.rounded_rectangle([x, y, x + 8, y + CH_], radius=4,
+        ld.rounded_rectangle([x, y + 4, x + 7, y + CH_ - 4], radius=4,
                              fill=(MAIZE if g["home"] else (165, 180, 200)) + (a,))
 
         ds = f"{MON[g['date'].month]} {g['date'].day}"
@@ -386,22 +411,19 @@ def build(me, games, logos):
 
         # logo + opponent
         lg = logos.get(g["opp_id"])
-        ly = y + CH_ - 58
+        ly = y + CH_ - 64
         if lg:
-            box = 44
+            box = 50
             l2 = fade(fit(lg, box, box), a)
-            layer.alpha_composite(l2, (x + 20 + (box - l2.width) // 2,
-                                       ly + (44 - l2.height) // 2))
-        tx = x + 74
-        va = "AT" if (not g["home"] and not g["neutral"]) else "VS"
-        ld.text((tx, ly + 16), va, font=va_f, fill=(255, 255, 255, int(a * 0.6)))
-        tx += 32
+            layer.alpha_composite(l2, (x + 18 + (box - l2.width) // 2,
+                                       ly + (50 - l2.height) // 2))
+        tx = x + (78 if lg else 24)
         if g["opp_rank"]:
             rk = f"#{g['opp_rank']}"
-            ld.text((tx, ly + 14), rk, font=rank_f, fill=MAIZE + (a,))
+            ld.text((tx, ly + 12), rk, font=rank_f, fill=MAIZE + (a,))
             tx += ld.textbbox((0, 0), rk, font=rank_f)[2] + 9
         nm = SHORT.get(g["opp_name"], g["opp_name"]).upper()
-        ld.text((tx, ly + 3), nm, font=name_f, fill=(255, 255, 255, a))
+        ld.text((tx, ly - 2), nm, font=name_f, fill=(255, 255, 255, a))
 
         if g["date"] == today:
             ld.rounded_rectangle([x - 4, y - 4, x + CW_ + 4, y + CH_ + 4],
