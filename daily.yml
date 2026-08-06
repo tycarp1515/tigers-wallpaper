@@ -2,9 +2,12 @@ name: Daily Tigers wallpaper
 
 on:
   schedule:
-    # 11:00 UTC = 7:00 AM Eastern (EDT). Late West-coast games are final by then.
-    - cron: "0 11 * * *"
-  workflow_dispatch:        # adds a "Run workflow" button for manual runs
+    - cron: "40 8 * * *"    # 4:40 AM ET
+    - cron: "40 10 * * *"   # 6:40 AM ET
+    - cron: "40 12 * * *"   # 8:40 AM ET
+    - cron: "40 14 * * *"   # 10:40 AM ET
+    - cron: "40 16 * * *"   # 12:40 PM ET
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,17 +27,28 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Render the wallpaper
+      - name: Render the Tigers wallpaper
         run: python render_wallpaper.py
 
-      - name: Commit if the image changed
+      - name: Render the Tigers widgets
+        run: python render_widgets.py
+
+      # Michigan uses a different data source (ESPN), so let it fail loudly
+      # in the log without killing the Tigers render.
+      - name: Render the Michigan wallpaper
+        continue-on-error: true
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: python render_michigan.py
+
+      - name: Commit if anything changed
         run: |
           git config user.name  "tigers-wallpaper-bot"
           git config user.email "actions@github.com"
-          git add --force output/current.png
+          git add --force output/current.png output/widget-*.png output/michigan.png assets/cfb-logos || true
           if git diff --staged --quiet; then
-            echo "No change today — nothing to commit."
+            echo "No change — nothing to commit."
           else
-            git commit -m "Wallpaper update $(date -u +'%Y-%m-%d')"
+            git commit -m "Wallpaper update $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           fi
