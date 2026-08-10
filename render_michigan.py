@@ -238,18 +238,43 @@ def get_logo(stem, url):
         return None
 
 
-def is_dark(im):
-    """True if the logo's visible pixels are mostly dark (needs a glow on navy)."""
+def sample_bg(img, x, y, w, h):
+    """Average colour of the backdrop where a logo is about to be drawn."""
+    box = img.convert("RGB").crop((max(0, x), max(0, y), x + max(1, w), y + max(1, h)))
+    box = box.resize((8, 8))
+    px = box.load()
+    tot = [0, 0, 0]
+    for j in range(8):
+        for i in range(8):
+            p = px[i, j]
+            tot[0] += p[0]; tot[1] += p[1]; tot[2] += p[2]
+    return (tot[0] / 64, tot[1] / 64, tot[2] / 64)
+
+
+def mean_visible_rgb(im):
+    """Average colour of the logo's non-transparent pixels."""
     small = im.resize((32, 32))
     px = small.load()
-    tot = n = 0
+    tot = [0, 0, 0]; n = 0
     for y in range(32):
         for x in range(32):
-            r, g, b, a = px[x, y]
-            if a > 60:
-                tot += 0.299 * r + 0.587 * g + 0.114 * b
-                n += 1
-    return n > 0 and (tot / n) < 78
+            r, g, b, al = px[x, y]
+            if al > 60:
+                tot[0] += r; tot[1] += g; tot[2] += b; n += 1
+    if not n:
+        return (255, 255, 255)
+    return (tot[0] / n, tot[1] / n, tot[2] / n)
+
+
+def needs_halo(im, bg):
+    """True when the logo sits too close in colour to what's behind it.
+
+    Brightness alone is the wrong test: Rutgers red is dark but reads fine
+    against navy, while Penn State's navy lion vanishes into it.
+    """
+    r, g, b = mean_visible_rgb(im)
+    dist = math.sqrt((r - bg[0]) ** 2 + (g - bg[1]) ** 2 + (b - bg[2]) ** 2)
+    return dist < 78
 
 
 def fit(im, bw, bh):
@@ -409,8 +434,22 @@ def build(me, games, logos):
         if lg:
             box = 58
             l2 = fade(fit(lg, box, box), a)
-            layer.alpha_composite(l2, (x + 20 + (box - l2.width) // 2,
-                                       ly + (58 - l2.height) // 2))
+            lx = x + 20 + (box - l2.width) // 2
+            lyy = ly + (58 - l2.height) // 2
+            # Dark marks (Penn State's navy lion, Iowa's black hawkeye) disappear
+            # against the navy photo. Lay a soft light halo behind them.
+            if needs_halo(l2, sample_bg(img, lx, lyy, l2.width, l2.height)):
+                pad = 10
+                halo = Image.new("RGBA", (l2.width + pad * 2, l2.height + pad * 2),
+                                 (255, 255, 255, 0))
+                shape = Image.new("RGBA", l2.size, (245, 248, 255, 0))
+                shape.putalpha(l2.getchannel("A").point(lambda v: int(v * 0.95)))
+                halo.alpha_composite(shape, (pad, pad))
+                halo = halo.filter(ImageFilter.GaussianBlur(7))
+                halo = fade(halo, min(255, int(a * 1.0)))
+                layer.alpha_composite(halo, (lx - pad, lyy - pad))
+                layer.alpha_composite(halo, (lx - pad, lyy - pad))   # twice = denser
+            layer.alpha_composite(l2, (lx, lyy))
         tx = x + (88 if lg else 26)
         if g["opp_rank"]:
             rk = f"#{g['opp_rank']}"
