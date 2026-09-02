@@ -35,6 +35,8 @@ jobs:
 
       - name: Render the Michigan wallpaper
         continue-on-error: true
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
         run: python render_michigan.py
 
       - name: Commit if anything changed
