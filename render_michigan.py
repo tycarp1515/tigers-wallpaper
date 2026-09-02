@@ -77,24 +77,50 @@ def _cfbd(path, **params):
 
 
 def _ap_ranks(season):
-    """{school: rank} from the most recent AP Top 25. Empty in preseason."""
-    try:
-        data = _cfbd("/rankings", year=season, seasonType="regular")
-    except Exception as e:
-        print(f"  ! rankings unavailable: {e}", file=sys.stderr)
-        return {}
-    best, out = -1, {}
-    for wk in data or []:
-        w = _g(wk, "week", default=0) or 0
+    """{school: rank} from the most recent AP Top 25.
+
+    CFBD has filed the preseason poll under different seasonType/week values
+    across seasons, so query broadly and keep the most recent AP poll found
+    instead of assuming it lives under regular-season week 1.
+    """
+    def pull(**params):
+        try:
+            return _cfbd("/rankings", year=season, **params) or []
+        except Exception as e:
+            print(f"  ! rankings {params or '(all)'} unavailable: {e}",
+                  file=sys.stderr)
+            return []
+
+    def has_ap(entries):
+        return any("AP" in str(_g(p, "poll", default=""))
+                   for wk in entries
+                   for p in (_g(wk, "polls", default=[]) or []))
+
+    entries = pull()                       # everything CFBD has for the year
+    if not has_ap(entries):                # preseason-window fallbacks
+        entries += pull(seasonType="preseason")
+    if not has_ap(entries):
+        entries += pull(seasonType="regular")
+
+    def recency(wk):
+        st = str(_g(wk, "seasonType", "season_type", default="regular")).lower()
+        order = {"preseason": 0, "regular": 1, "postseason": 2}.get(st, 1)
+        return (order, _g(wk, "week", default=0) or 0)
+
+    best_key, out = None, {}
+    for wk in entries:
         for poll in _g(wk, "polls", default=[]) or []:
             if "AP" not in str(_g(poll, "poll", default="")):
                 continue
-            if w >= best:
-                best = w
+            k = recency(wk)
+            if best_key is None or k >= best_key:
+                best_key = k
                 out = {_g(r, "school", "team"): _g(r, "rank")
                        for r in (_g(poll, "ranks", default=[]) or [])}
     if out:
-        print(f"  AP poll: week {best}, {len(out)} teams ranked")
+        print(f"  AP poll: {len(out)} teams ranked (Michigan {out.get(TEAM, 'NR')})")
+    else:
+        print("  AP poll: none found across seasonTypes", file=sys.stderr)
     return out
 
 
