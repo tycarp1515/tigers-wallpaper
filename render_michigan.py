@@ -45,6 +45,13 @@ API      = "https://api.collegefootballdata.com"
 CFBD_KEY = os.environ.get("CFBD_API_KEY", "").strip()
 TEAM     = "Michigan"
 
+# Browser-ish header so ESPN's logo CDN doesn't 403 the GitHub runner.
+# (This constant was referenced by get_logo but never defined — the cause of
+# "name 'UA' is not defined" on every opponent-logo fetch.)
+UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/125.0.0.0 Safari/537.36"}
+
 # ESPN team ids, used only to build logo URLs off their static CDN.
 ESPN_ID = {
     "Western Michigan": "2711", "Oklahoma": "201", "UTEP": "2638", "Iowa": "2294",
