@@ -33,8 +33,6 @@ jobs:
       - name: Render the Tigers widgets
         run: python render_widgets.py
 
-      # Michigan uses a different data source (ESPN), so let it fail loudly
-      # in the log without killing the Tigers render.
       - name: Render the Michigan wallpaper
         continue-on-error: true
         env:
