@@ -226,7 +226,7 @@ def fetch_cfb(t, today):
         hp, ap = _g(g, "homePoints", "home_points"), _g(g, "awayPoints", "away_points")
         final = bool(_g(g, "completed", default=False)) and hp is not None and ap is not None
         us, them = ((hp, ap) if home else (ap, hp)) if final else (None, None)
-        games.append(game(start, home, opp, f"ncaa-{oid}", espn_logo(f"ncaa/500/{oid}") if oid else None,
+        games.append(game(start, home, str(opp).upper(), f"ncaa-{oid}", espn_logo(f"ncaa/500/{oid}") if oid else None,
                           us, them, final, tbd=tbd, tv=tv.get(_g(g, "id")), opp_rank=ranks.get(opp),
                           conf=bool(_g(g, "conferenceGame", "conference_game", default=False))))
     rec = wl(games)
