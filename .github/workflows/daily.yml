@@ -33,17 +33,17 @@ jobs:
       - name: Render the Tigers widgets
         run: python render_widgets.py
 
-      - name: Render the Michigan wallpaper
+      - name: Render the weekly lookahead
         continue-on-error: true
         env:
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-        run: python render_michigan.py
+        run: python render_lookahead.py
 
       - name: Commit if anything changed
         run: |
           git config user.name  "tigers-wallpaper-bot"
           git config user.email "actions@github.com"
-          git add --force output/current.png output/widget-*.png output/michigan.png assets/cfb-logos || true
+          git add --force output/current.png output/widget-*.png output/lookahead.png assets/logos assets/cfb-logos || true
           if git diff --staged --quiet; then
             echo "No change — nothing to commit."
           else
