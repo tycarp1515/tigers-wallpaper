@@ -26,7 +26,7 @@ Env:
     LOOKAHEAD_DATE    pretend today is YYYY-MM-DD (testing)
 """
 
-import os, sys, io, csv, math, random, datetime as dt
+import os, sys, io, csv, json, math, random, datetime as dt
 from zoneinfo import ZoneInfo
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
@@ -196,15 +196,59 @@ def ap_ranks(season):
     return out
 
 
+CFB_CACHE = os.path.join(HERE, "assets", "cache", "cfbd.json")
+CFB_CACHE_HOURS = 3          # hourly runs x 3 calls would blow the free 1,000/month; this keeps it ~750
+_cfb_bundle = None
+
+
+def cfb_bundle(season):
+    """Games/TV/AP poll for our college teams, cached on disk so the hourly runs only
+    call CollegeFootballData every few hours. A stale cache is still used if CFBD fails."""
+    global _cfb_bundle
+    if _cfb_bundle is not None:
+        return _cfb_bundle
+    cached = None
+    try:
+        with open(CFB_CACHE) as fh:
+            cached = json.load(fh)
+    except Exception:
+        pass
+    now = dt.datetime.now(dt.timezone.utc)
+    if cached and cached.get("season") == season:
+        age = now - dt.datetime.fromisoformat(cached["fetched"])
+        if age < dt.timedelta(hours=CFB_CACHE_HOURS):
+            print(f"  CFBD cache: {int(age.total_seconds() // 60)} min old, reusing")
+            _cfb_bundle = cached
+            return cached
+    try:
+        names = {t["code"] for t in TEAMS if t["league"] == "cfb"}
+        games = [g for g in cfbd("/games", year=season, seasonType="both")
+                 if _g(g, "homeTeam", "home_team") in names or _g(g, "awayTeam", "away_team") in names]
+        ids = {_g(g, "id") for g in games}
+        try:
+            media = [m for m in cfbd("/games/media", year=season, seasonType="both")
+                     if _g(m, "id", "gameId", "game_id") in ids]
+        except Exception as e:
+            print(f"  ! media: {e}", file=sys.stderr)
+            media = []
+        bundle = dict(season=season, fetched=now.isoformat(), games=games, media=media, ranks=ap_ranks(season))
+        os.makedirs(os.path.dirname(CFB_CACHE), exist_ok=True)
+        with open(CFB_CACHE, "w") as fh:
+            json.dump(bundle, fh)
+        print(f"  CFBD: fetched {len(games)} games, cache saved")
+    except Exception as e:
+        if not cached:
+            raise
+        print(f"  ! CFBD fetch failed ({e}); using older cache", file=sys.stderr)
+        bundle = cached
+    _cfb_bundle = bundle
+    return bundle
+
+
 def fetch_cfb(t, today):
     season = football_season(today)
-    allg = cfbd("/games", year=season, seasonType="both")
-    ranks = ap_ranks(season)
-    try:
-        media = cfbd("/games/media", year=season, seasonType="both")
-    except Exception as e:
-        print(f"  ! media: {e}", file=sys.stderr)
-        media = []
+    b = cfb_bundle(season)
+    allg, ranks, media = b["games"], b.get("ranks") or {}, b.get("media") or []
     tv = {}
     for m in media:
         gid, outlet = _g(m, "id", "gameId", "game_id"), _g(m, "outlet")
@@ -534,9 +578,8 @@ def make_background():
     img = Image.alpha_composite(img, Image.merge("RGBA", (*[Image.new("L", (W, H), 0)] * 3, vig)))
 
     # grain
-    noise = Image.effect_noise((W, H), 40).point(lambda v: 128 + (v - 128) // 3)
-    img = Image.blend(img.convert("RGB"), Image.merge("RGB", (noise,) * 3), 0.05)
-    return img.convert("RGBA")
+    # (no film grain: it made every render a ~3.3 MB PNG; without it ~0.5 MB)
+    return img
 
 
 def backdrop():
@@ -736,7 +779,7 @@ def build(cards, rows, today, mock=False):
         layer.alpha_composite(hl)
 
     # ---- footer
-    stamp = dt.datetime.now(ET).strftime("%-m/%-d %-I:%M %p")
+    stamp = f"{DOW[today.weekday()]} {today.month}/{today.day}"   # date only: a minute stamp made every run a new commit
     foot_txt = "TINTED = HOME   ·   ALL TIMES ET   ·   " + ("SAMPLE DATA" if mock else f"UPDATED {stamp}")
     text_at(d, W // 2, y + 24, foot_txt, font(MONOR, 20), (255, 255, 255, 120), "c")
 

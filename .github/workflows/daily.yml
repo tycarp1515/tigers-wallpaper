@@ -2,11 +2,10 @@ name: Daily Tigers wallpaper
 
 on:
   schedule:
-    - cron: "40 8 * * *"    # 4:40 AM ET
-    - cron: "40 10 * * *"   # 6:40 AM ET
-    - cron: "40 12 * * *"   # 8:40 AM ET
-    - cron: "40 14 * * *"   # 10:40 AM ET
-    - cron: "40 16 * * *"   # 12:40 PM ET
+    # Hourly, round the clock. GitHub starts scheduled runs hours late (often 5-7h),
+    # so a few fixed times left nothing running from evening until late morning.
+    # Hourly keeps real runs spread through the night: late scores and the new day land.
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -43,7 +42,7 @@ jobs:
         run: |
           git config user.name  "tigers-wallpaper-bot"
           git config user.email "actions@github.com"
-          git add --force output/current.png output/widget-*.png output/lookahead.png assets/logos assets/cfb-logos || true
+          git add --force output/current.png output/widget-*.png output/lookahead.png assets/logos assets/cfb-logos assets/cache || true
           if git diff --staged --quiet; then
             echo "No change — nothing to commit."
           else
