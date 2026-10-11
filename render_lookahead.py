@@ -436,7 +436,7 @@ def mock_data(today):
 # --------------------------------------------------------------- drawing
 # Everything is laid out in 1290x2796 "design" units but drawn RS times larger, so the
 # phone has extra pixels to work with (the home screen's copy of the wallpaper was soft).
-RS = float(os.environ.get("LOOKAHEAD_SCALE", "2"))
+RS = float(os.environ.get("LOOKAHEAD_SCALE", "1"))   # 2x made iOS zoom the wallpaper; keep 1
 
 
 def font(n, s):
