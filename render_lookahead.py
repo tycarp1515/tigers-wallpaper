@@ -40,6 +40,9 @@ ET       = ZoneInfo("America/New_York")
 
 W, H = 1290, 2796
 BAND_TOP, BAND_BOT = 655, 2425      # under the clock / above the lock-screen buttons
+# iOS enlarges this wallpaper ~1.15x when the Shortcut sets it; we pre-compensate (see build()).
+# Set LOOKAHEAD_ZOOM=1 if the phone ever stops zooming.
+ZOOM_COMP = float(os.environ.get("LOOKAHEAD_ZOOM", "1.15"))
 X0, X1 = 58, 1232
 
 WHITE = (255, 255, 255)
@@ -786,6 +789,14 @@ def build(cards, rows, today, mock=False):
     foot_txt = "TINTED = HOME   ·   ALL TIMES ET   ·   " + ("SAMPLE DATA" if mock else f"UPDATED {stamp}")
     text_at(d, W // 2, y + 24, foot_txt, font(MONOR, 20), (255, 255, 255, 120), "c")
 
+    if ZOOM_COMP > 1:
+        # iOS zooms Shortcut-set wallpapers (measured ~1.15x, "Perspective Zoom"), which
+        # cropped the edges and blurred the text. Hand it a larger canvas with the design
+        # 1:1 in the middle: after iOS's zoom, the design fills the screen pixel-for-pixel.
+        bw, bh = round(W * ZOOM_COMP), round(H * ZOOM_COMP)
+        big = backdrop().resize((bw, bh), Image.LANCZOS)
+        big.alpha_composite(layer, ((bw - W) // 2, (bh - H) // 2))
+        return big.convert("RGB")
     img = Image.alpha_composite(img, layer)
     return img.convert("RGB")
 
