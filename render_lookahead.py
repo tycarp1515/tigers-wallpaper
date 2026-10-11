@@ -631,6 +631,27 @@ def opp_label(g):
     return f"{'vs' if g['home'] else '@'} {rk}{g['opp']}"
 
 
+GRID_BACK = 1      # grid shows this many days back (yesterday's results), then today and ahead
+
+# Short labels for the grid rows; the logo already says which school/team it is.
+GRID_SHORT = {"DET-NHL": "WINGS", "DET-NBA": "PISTONS", "MICH-HKY": "MICH", "MINN-HKY": "MINN",
+              "WMU-HKY": "WMU", "MICH-BB": "MICH", "MINN-BB": "MINN", "WMU-BB": "WMU"}
+SUB_SHORT = {"HOCKEY": "HKY", "HOOPS": "HOOPS"}
+
+
+def fit_font(d, text, face, size, room, floor=14):
+    """Largest font of this face, up to `size`, that fits `text` into `room` pixels."""
+    while size > floor and tsize(d, text, font(face, size))[0] > room:
+        size -= 1
+    return font(face, size)
+
+
+def grid_window(today):
+    """Rolling 7-day window for the nightly grid: yesterday, today, and the next 5 days."""
+    gs = today - dt.timedelta(days=GRID_BACK)
+    return gs, gs + dt.timedelta(days=6)
+
+
 def build(cards, rows, today, mock=False):
     img = backdrop()
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -724,17 +745,19 @@ def build(cards, rows, today, mock=False):
     if rows:
         y += SEC - card_gap
         k = row_h / 160                                # 1.0 at full size
-        label_w = 272
+        label_w = 330
         cw = (X1 - X0 - label_w) / 7
         strip_top = y
         strip_bot = y + day_h + len(rows) * (row_h + row_gap) - row_gap
-        ti = (today - ws).days
+        gs, ge = grid_window(today)
+        ti = (today - gs).days
         tx0 = int(X0 + label_w + ti * cw)
         f_dow, f_day = font(MONO, 22), font(BIG, 42)
         for i in range(7):
-            dd = ws + dt.timedelta(days=i)
+            dd = gs + dt.timedelta(days=i)
             cx = X0 + label_w + i * cw + cw / 2
-            text_at(d, cx, y + 2, DOW[i], f_dow, (GOLD if i == ti else DIM) + (255,), "c")
+            dow = DOW[dd.weekday()]
+            text_at(d, cx, y + 2, dow, f_dow, (GOLD if i == ti else DIM) + (255,), "c")
             text_at(d, cx, y + 28, str(dd.day), f_day, (GOLD if i == ti else WHITE) + (255,), "c")
         y += day_h
 
@@ -751,15 +774,18 @@ def build(cards, rows, today, mock=False):
             logo_or_badge(layer, d, lk, lu, t["name"][:4], X0 + 62, y + h // 2, int(84 * k), t["color"])
             tx = X0 + 62 + int(84 * k) // 2 + 14
             name_h = tsize(d, "M", f_rn)[1]
-            text_at(d, tx, y + int(h * 0.20), t["name"], f_rn, WHITE + (255,))
-            sub = " · ".join(v for v in (t.get("sub"), f"#{info['rank']}" if info.get("rank") else None,
+            room = X0 + label_w - tx - 12                 # never run into yesterday's column
+            name = GRID_SHORT.get(t["key"], t["name"])
+            text_at(d, tx, y + int(h * 0.20), name, fit_font(d, name, BIG, f_rn.size, room), WHITE + (255,))
+            sub = " · ".join(v for v in (SUB_SHORT.get(t.get("sub"), t.get("sub")),
+                                          f"#{info['rank']}" if info.get("rank") else None,
                                           info.get("record")) if v)
-            text_at(d, tx, y + int(h * 0.58), sub, f_sub, DIM + (255,))
+            text_at(d, tx, y + int(h * 0.58), sub, fit_font(d, sub, MONOR, f_sub.size, room), DIM + (255,))
 
             byday = {}
             for g in info["games"]:
-                if ws <= g["dt"].date() <= we:
-                    byday.setdefault((g["dt"].date() - ws).days, g)
+                if gs <= g["dt"].date() <= ge:
+                    byday.setdefault((g["dt"].date() - gs).days, g)
             for i, g in byday.items():
                 c0 = X0 + label_w + i * cw
                 box = [int(c0) + 6, y + 7, int(c0 + cw) - 6, y + h - 7]
@@ -827,9 +853,10 @@ def main():
         print(f"  {t['key']:9} {len(info['games']):3} games  {info.get('record', '')}")
 
     cards = [(t, i) for t, i in data if t["kind"] == "card" and active(i, today)]
+    gs, ge = grid_window(today)
     rows = [(t, i) for t, i in data if t["kind"] == "strip"
-            and any(ws <= g["dt"].date() <= we for g in i["games"])]
-    print(f"week {ws} – {we}: {len(cards)} football cards, {len(rows)} nightly rows")
+            and any(gs <= g["dt"].date() <= ge for g in i["games"])]
+    print(f"football week {ws} – {we}: {len(cards)} cards | grid {gs} – {ge}: {len(rows)} rows")
 
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, "lookahead.png")
