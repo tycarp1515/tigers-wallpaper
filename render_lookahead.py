@@ -693,7 +693,10 @@ def build(cards, rows, today, mock=False):
             text_at(d, lx + OL + 8, ly + 1, last["opp"], f_opp, (215, 222, 232, 235))
 
         rx = X1 - 24
-        if nxt and ws <= nxt["dt"].date() <= we:
+        # Show the next game normally if it's this week, or if the team already played this
+        # week (e.g. Sunday after a Saturday game). "BYE WEEK" only when there's no game this week.
+        played_this_week = any(g["final"] and ws <= g["dt"].date() <= we for g in games)
+        if nxt and (ws <= nxt["dt"].date() <= we or played_this_week):
             is_today = nxt["dt"].date() == today
             text_at(d, rx, y + 10, when(nxt, today), f_when, (GOLD if is_today else WHITE) + (255,), "r")
             ox = rx
