@@ -434,8 +434,45 @@ def mock_data(today):
 
 
 # --------------------------------------------------------------- drawing
+# Everything is laid out in 1290x2796 "design" units but drawn RS times larger, so the
+# phone has extra pixels to work with (the home screen's copy of the wallpaper was soft).
+RS = float(os.environ.get("LOOKAHEAD_SCALE", "2"))
+
+
 def font(n, s):
-    return ImageFont.truetype(os.path.join(FONTS, n), s)
+    f = ImageFont.truetype(os.path.join(FONTS, n), max(1, round(s * RS)))
+    f.lsize = s                      # size in design units, for fit_font()
+    return f
+
+
+def _sc(xy):
+    """Scale design-unit coordinates (flat list or list of points) to pixels."""
+    if xy and isinstance(xy[0], (tuple, list)):
+        return [(px * RS, py * RS) for px, py in xy]
+    return [v * RS for v in xy]
+
+
+class SDraw:
+    """ImageDraw that takes design units and draws at RS x resolution."""
+    def __init__(self, im):
+        self._d = ImageDraw.Draw(im)
+
+    def rounded_rectangle(self, xy, radius=0, fill=None, outline=None, width=1):
+        self._d.rounded_rectangle(_sc(xy), radius=radius * RS, fill=fill, outline=outline,
+                                  width=max(1, round(width * RS)))
+
+    def line(self, xy, fill=None, width=1):
+        self._d.line(_sc(xy), fill=fill, width=max(1, round(width * RS)))
+
+    def ellipse(self, xy, fill=None, outline=None, width=1):
+        self._d.ellipse(_sc(xy), fill=fill, outline=outline, width=max(1, round(width * RS)))
+
+    def text(self, xy, text, font=None, fill=None):
+        self._d.text((xy[0] * RS, xy[1] * RS), text, font=font, fill=fill)
+
+    def textbbox(self, xy, text, font=None):
+        b = self._d.textbbox((xy[0] * RS, xy[1] * RS), text, font=font)
+        return tuple(v / RS for v in b)
 
 
 BIG, MONO, MONOR = "BigShoulders-Bold.ttf", "GeistMono-Bold.ttf", "GeistMono-Regular.ttf"
@@ -501,16 +538,16 @@ def mean_rgb(im):
 
 def paste_logo(layer, im, cx, cy, box, bg=(14, 22, 38)):
     """Centered logo; dark marks (Vikings purple, Penn State navy) get a soft light halo."""
-    lg = fit(im, box)
-    x, y = int(cx - lg.width / 2), int(cy - lg.height / 2)
+    lg = fit(im, box * RS)
+    x, y = int(cx * RS - lg.width / 2), int(cy * RS - lg.height / 2)
     r, g, b = mean_rgb(lg)
     if math.dist((r, g, b), bg) < 95:
-        pad = 12
+        pad = int(12 * RS)
         halo = Image.new("RGBA", (lg.width + pad * 2, lg.height + pad * 2), (0, 0, 0, 0))
         shape = Image.new("RGBA", lg.size, (235, 240, 250, 0))
         shape.putalpha(lg.getchannel("A"))
         halo.alpha_composite(shape, (pad, pad))
-        halo = halo.filter(ImageFilter.GaussianBlur(8))
+        halo = halo.filter(ImageFilter.GaussianBlur(8 * RS))
         layer.alpha_composite(halo, (x - pad, y - pad))
         layer.alpha_composite(halo, (x - pad, y - pad))
     layer.alpha_composite(lg, (x, y))
@@ -653,9 +690,9 @@ def grid_window(today):
 
 
 def build(cards, rows, today, mock=False):
-    img = backdrop()
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
+    SW, SH = round(W * RS), round(H * RS)
+    layer = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
+    d = SDraw(layer)
     ws = today - dt.timedelta(days=today.weekday())
     we = ws + dt.timedelta(days=6)
 
@@ -776,11 +813,11 @@ def build(cards, rows, today, mock=False):
             name_h = tsize(d, "M", f_rn)[1]
             room = X0 + label_w - tx - 12                 # never run into yesterday's column
             name = GRID_SHORT.get(t["key"], t["name"])
-            text_at(d, tx, y + int(h * 0.20), name, fit_font(d, name, BIG, f_rn.size, room), WHITE + (255,))
+            text_at(d, tx, y + int(h * 0.20), name, fit_font(d, name, BIG, f_rn.lsize, room), WHITE + (255,))
             sub = " · ".join(v for v in (SUB_SHORT.get(t.get("sub"), t.get("sub")),
                                           f"#{info['rank']}" if info.get("rank") else None,
                                           info.get("record")) if v)
-            text_at(d, tx, y + int(h * 0.58), sub, fit_font(d, sub, MONOR, f_sub.size, room), DIM + (255,))
+            text_at(d, tx, y + int(h * 0.58), sub, fit_font(d, sub, MONOR, f_sub.lsize, room), DIM + (255,))
 
             byday = {}
             for g in info["games"]:
@@ -805,8 +842,8 @@ def build(cards, rows, today, mock=False):
             y += h + row_gap
         y -= row_gap
         # today's column, drawn last so it sits over the rows
-        hl = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ImageDraw.Draw(hl).rounded_rectangle([tx0 + 2, strip_top - 8, int(tx0 + cw) - 2, strip_bot + 8],
+        hl = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
+        SDraw(hl).rounded_rectangle([tx0 + 2, strip_top - 8, int(tx0 + cw) - 2, strip_bot + 8],
                                              radius=16, fill=(255, 255, 255, 14), outline=GOLD + (150,), width=2)
         layer.alpha_composite(hl)
 
@@ -819,11 +856,12 @@ def build(cards, rows, today, mock=False):
         # iOS zooms Shortcut-set wallpapers (measured ~1.15x, "Perspective Zoom"), which
         # cropped the edges and blurred the text. Hand it a larger canvas with the design
         # 1:1 in the middle: after iOS's zoom, the design fills the screen pixel-for-pixel.
-        bw, bh = round(W * ZOOM_COMP), round(H * ZOOM_COMP)
+        bw, bh = round(W * ZOOM_COMP * RS), round(H * ZOOM_COMP * RS)
         big = backdrop().resize((bw, bh), Image.LANCZOS)
-        big.alpha_composite(layer, ((bw - W) // 2, (bh - H) // 2))
+        big.alpha_composite(layer, ((bw - SW) // 2, (bh - SH) // 2))
         return big.convert("RGB")
-    img = Image.alpha_composite(img, layer)
+    img = backdrop().resize((SW, SH), Image.LANCZOS)
+    img.alpha_composite(layer)
     return img.convert("RGB")
 
 
