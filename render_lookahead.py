@@ -710,7 +710,13 @@ def grid_window(today):
     return gs, gs + dt.timedelta(days=6)
 
 
-def build(cards, rows, today, mock=False):
+# Home-screen version: no clock to dodge, so it runs from under the status bar to just
+# above the dock, with taller cards and rows. Set separately by the Shortcut.
+HOME_BAND = (175, 2390)
+
+
+def build(cards, rows, today, mock=False, band=None, card_h=116, row_max=172):
+    band_top, band_bot = band or (BAND_TOP, BAND_BOT)
     SW, SH = round(W * RS), round(H * RS)
     layer = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
     d = SDraw(layer)
@@ -719,16 +725,16 @@ def build(cards, rows, today, mock=False):
 
     # ---- sizing: football cards are fixed and compact; the nightly grid gets the rest
     HDR, SEC, FOOT = 92, 40, 58
-    card_h, card_gap = 116, 12
+    card_gap = 12
     day_h, row_gap = 78, 10
-    avail = BAND_BOT - BAND_TOP
+    avail = band_bot - band_top
     used = HDR + FOOT + (len(cards) * (card_h + card_gap) - card_gap if cards else 0)
     row_h = 0
     if rows:
         room = avail - used - SEC - day_h
-        row_h = int(min(172, max(92, (room + row_gap) / len(rows) - row_gap)))
+        row_h = int(min(row_max, max(92, (room + row_gap) / len(rows) - row_gap)))
     total = used + ((SEC + day_h + len(rows) * (row_h + row_gap) - row_gap) if rows else 0)
-    y = BAND_TOP + max(0, (avail - total) // 2)
+    y = band_top + max(0, (avail - total) // 2)
 
     # ---- header
     title = f"WEEK OF {MON[ws.month]} {ws.day} – " + (f"{we.day}" if we.month == ws.month else f"{MON[we.month]} {we.day}")
@@ -750,7 +756,8 @@ def build(cards, rows, today, mock=False):
         lk, lu = info["logo"]
         logo_or_badge(layer, d, lk, lu, t["name"][:4], x + 66, y + h // 2, 76, t["color"])
 
-        nx, ny = x + 122, y + 10
+        cy0 = y + (h - 116) // 2                       # content block is 116 tall; centre it
+        nx, ny = x + 122, cy0 + 10
         if info.get("rank"):
             nx += text_at(d, nx, ny + 15, f"#{info['rank']}", f_rank, GOLD + (255,)) + 9
         nx += text_at(d, nx, ny, t["name"], f_name, WHITE + (255,)) + 14
@@ -763,7 +770,7 @@ def build(cards, rows, today, mock=False):
         if mock:
             nxt = next((g for g in games if not g["final"]), None)
 
-        ly = y + 70                                    # second line (text top)
+        ly = cy0 + 70                                  # second line (text top)
         lc = ly + 13                                   # its vertical centre, for logos
         lx = x + 122
         if last:
@@ -780,7 +787,7 @@ def build(cards, rows, today, mock=False):
         played_this_week = any(g["final"] and ws <= g["dt"].date() <= we for g in games)
         if nxt and (ws <= nxt["dt"].date() <= we or played_this_week):
             is_today = nxt["dt"].date() == today
-            text_at(d, rx, y + 10, when(nxt, today), f_when, (GOLD if is_today else WHITE) + (255,), "r")
+            text_at(d, rx, cy0 + 10, when(nxt, today), f_when, (GOLD if is_today else WHITE) + (255,), "r")
             ox = rx
             if nxt.get("tv"):
                 ox -= text_at(d, ox, ly + 1, nxt["tv"], f_opp, GOLD + (230,), "r") + 14
@@ -789,14 +796,14 @@ def build(cards, rows, today, mock=False):
             logo_or_badge(layer, d, nxt["logo_key"], nxt["logo_url"], nxt["opp"], ox - OL // 2, lc, OL)
             text_at(d, ox - OL - 8, ly + 1, "vs" if nxt["home"] else "@", f_opp, DIM + (255,), "r")
         elif nxt:
-            text_at(d, rx, y + 10, "BYE WEEK", f_when, (200, 208, 220, 255), "r")
+            text_at(d, rx, cy0 + 10, "BYE WEEK", f_when, (200, 208, 220, 255), "r")
             rk = f"#{nxt['opp_rank']} " if nxt.get("opp_rank") else ""
             ox = rx - text_at(d, rx, ly + 1, rk + nxt["opp"], f_opp, DIM + (255,), "r") - 8
             logo_or_badge(layer, d, nxt["logo_key"], nxt["logo_url"], nxt["opp"], ox - OL // 2, lc, OL)
             text_at(d, ox - OL - 8, ly + 1, f"{MON[nxt['dt'].month]} {nxt['dt'].day}  {'vs' if nxt['home'] else '@'}",
                     f_opp, DIM + (255,), "r")
         else:
-            text_at(d, rx, y + 10, "SEASON OVER", f_when, DIM + (255,), "r")
+            text_at(d, rx, cy0 + 10, "SEASON OVER", f_when, DIM + (255,), "r")
         y += h + card_gap
 
     # ---- nightly grid (bigger; scales with however many rows this week has)
@@ -819,7 +826,7 @@ def build(cards, rows, today, mock=False):
             text_at(d, cx, y + 28, str(dd.day), f_day, (GOLD if i == ti else WHITE) + (255,), "c")
         y += day_h
 
-        f_rn = font(BIG, int(46 * max(k, 0.8)))
+        f_rn = font(BIG, int(46 * min(max(k, 0.8), 1.25)))
         f_sub = font(MONOR, int(22 * max(k, 0.85)))
         f_cell = font(MONO, int(28 * max(k, 0.8)))
         f_cell_sm = font(MONO, int(22 * max(k, 0.8)))
@@ -829,8 +836,9 @@ def build(cards, rows, today, mock=False):
             d.rounded_rectangle([X0, y, X1, y + h], radius=18, fill=(10, 16, 30, 140), outline=(255, 255, 255, 22), width=2)
             d.rounded_rectangle([X0, y + 12, X0 + 8, y + h - 12], radius=4, fill=t["color"] + (255,))
             lk, lu = info["logo"]
-            logo_or_badge(layer, d, lk, lu, t["name"][:4], X0 + 62, y + h // 2, int(84 * k), t["color"])
-            tx = X0 + 62 + int(84 * k) // 2 + 14
+            lb = int(84 * min(k, 1.05))                   # team logo: don't let it swallow the stripe
+            logo_or_badge(layer, d, lk, lu, t["name"][:4], X0 + 62, y + h // 2, lb, t["color"])
+            tx = X0 + 62 + lb // 2 + 14
             name_h = tsize(d, "M", f_rn)[1]
             room = X0 + label_w - tx - 12                 # never run into yesterday's column
             name = GRID_SHORT.get(t["key"], t["name"])
@@ -927,6 +935,9 @@ def main():
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, "lookahead.png")
     build(cards, rows, today, mock).save(out)
+    home = os.path.join(OUTDIR, "lookahead-home.png")
+    build(cards, rows, today, mock, band=HOME_BAND, card_h=140, row_max=240).save(home)
+    print("->", home)
     if not mock:
         with open(os.path.join(OUTDIR, "lookahead-status.txt"), "w") as fh:
             fh.write(f"date {today}  (feeds as of this render)\n" + "\n".join(status) + "\n")
