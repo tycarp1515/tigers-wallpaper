@@ -65,7 +65,7 @@ TEAMS = [
     dict(key="MINN-CFB", kind="card",  league="cfb",   name="MINNESOTA",   code="Minnesota",        espn="135",  color=(160, 20, 45)),
     dict(key="WMU-CFB",  kind="card",  league="cfb",   name="W. MICHIGAN", code="Western Michigan", espn="2711", color=(181, 161, 103)),
     dict(key="DET-NHL",  kind="strip", league="nhl",   name="RED WINGS",   code="DET",              color=(206, 17, 38)),
-    dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET",              color=(29, 66, 186)),
+    dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET", espn="8",    color=(29, 66, 186)),
     dict(key="MICH-HKY", kind="strip", league="ncaah", name="MICHIGAN",    sub="HOCKEY", espn="130",  color=(255, 203, 5)),
     dict(key="MINN-HKY", kind="strip", league="ncaah", name="MINNESOTA",   sub="HOCKEY", espn="135",  color=(160, 20, 45)),
     dict(key="WMU-HKY",  kind="strip", league="ncaah", name="W. MICHIGAN", sub="HOCKEY", espn="2711", color=(181, 161, 103)),
@@ -356,8 +356,21 @@ def _score(c):
         return None
 
 
-def fetch_espn_college(t, today, sport):
-    d = get_json(f"https://site.api.espn.com/apis/site/v2/sports/{sport}/teams/{t['espn']}/schedule")
+def fetch_nba_any(t, today):
+    """ESPN first (cdn.nba.com returns 403 to GitHub's runners); NBA's own feed as a fallback.
+    seasontype=2 asks ESPN for the regular season even while preseason is on."""
+    try:
+        info = fetch_espn_college(t, today, "basketball/nba", seasontype=2)
+        if info["games"]:
+            return info
+        raise RuntimeError("ESPN returned no NBA games")
+    except Exception as e:
+        print(f"  ! NBA via ESPN: {e}; trying cdn.nba.com", file=sys.stderr)
+        return fetch_nba(t, today)
+
+
+def fetch_espn_college(t, today, sport, **params):
+    d = get_json(f"https://site.api.espn.com/apis/site/v2/sports/{sport}/teams/{t['espn']}/schedule", **params)
     games, rank = [], None
     for ev in d.get("events", []):
         comp = (ev.get("competitions") or [{}])[0]
@@ -385,7 +398,7 @@ def fetch_espn_college(t, today, sport):
 
 
 FETCH = {
-    "nfl": fetch_nfl, "cfb": fetch_cfb, "nhl": fetch_nhl, "nba": fetch_nba,
+    "nfl": fetch_nfl, "cfb": fetch_cfb, "nhl": fetch_nhl, "nba": lambda t, d: fetch_nba_any(t, d),
     "ncaah": lambda t, d: fetch_espn_college(t, d, "hockey/mens-college-hockey"),
     "ncaab": lambda t, d: fetch_espn_college(t, d, "basketball/mens-college-basketball"),
 }
