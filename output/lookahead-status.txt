@@ -1,0 +1,14 @@
+date 2026-10-18  (feeds as of this render)
+DET-NFL   ok       17 games  3-2
+MIN-NFL   ok       17 games  5-0
+MICH-CFB  ok       12 games  4-2 (1-2)
+MINN-CFB  ok       12 games  4-2 (2-1)
+WMU-CFB   ok       12 games  5-2 (3-0)
+DET-NHL   ok       84 games  3-3-2
+DET-NBA   FAILED  HTTPError: 403 Client Error: Forbidden for url: https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json
+MICH-HKY  ok       34 games  6-0-0
+MINN-HKY  ok       34 games  0-3-0
+WMU-HKY   ok       33 games  4-0-0
+MICH-BB   ok        0 games  0-0
+MINN-BB   ok        0 games  0-0
+WMU-BB    ok        0 games  0-0
