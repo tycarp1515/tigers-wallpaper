@@ -710,8 +710,7 @@ def grid_window(today):
     return gs, gs + dt.timedelta(days=6)
 
 
-# Home-screen version: no clock to dodge, so it runs from under the status bar to just
-# above the dock, with taller cards and rows. Set separately by the Shortcut.
+# Full-height band: from under the status bar to just above the dock.
 HOME_BAND = (175, 2390)
 
 
@@ -934,10 +933,9 @@ def main():
 
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, "lookahead.png")
-    build(cards, rows, today, mock).save(out)
-    home = os.path.join(OUTDIR, "lookahead-home.png")
-    build(cards, rows, today, mock, band=HOME_BAND, card_h=140, row_max=240).save(home)
-    print("->", home)
+    # Full-height layout (status bar to dock). Ty uses it as his home screen; on the
+    # Lock Screen the clock overlaps the top of it, which he chose to accept.
+    build(cards, rows, today, mock, band=HOME_BAND, card_h=140, row_max=240).save(out)
     if not mock:
         with open(os.path.join(OUTDIR, "lookahead-status.txt"), "w") as fh:
             fh.write(f"date {today}  (feeds as of this render)\n" + "\n".join(status) + "\n")
