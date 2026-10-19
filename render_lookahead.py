@@ -360,7 +360,7 @@ def fetch_nba_any(t, today):
     """ESPN first (cdn.nba.com returns 403 to GitHub's runners); NBA's own feed as a fallback.
     seasontype=2 asks ESPN for the regular season even while preseason is on."""
     try:
-        info = fetch_espn_college(t, today, "basketball/nba", seasontype=2)
+        info = fetch_espn_college(t, today, "basketball/nba", pro="nba", seasontype=2)
         if info["games"]:
             return info
         raise RuntimeError("ESPN returned no NBA games")
@@ -369,7 +369,10 @@ def fetch_nba_any(t, today):
         return fetch_nba(t, today)
 
 
-def fetch_espn_college(t, today, sport, **params):
+def fetch_espn_college(t, today, sport, pro=None, **params):
+    """ESPN team schedule. pro="nba" files logos under nba-<ABBR> (ESPN reuses the same
+    numeric ids for pro teams and colleges: Pistons 8 = Arkansas 8) and takes the record
+    from regular-season games instead of ESPN's summary, which counts preseason."""
     d = get_json(f"https://site.api.espn.com/apis/site/v2/sports/{sport}/teams/{t['espn']}/schedule", **params)
     games, rank = [], None
     for ev in d.get("events", []):
@@ -389,10 +392,15 @@ def fetch_espn_college(t, today, sport, **params):
         r = (me.get("curatedRank") or {}).get("current")
         if r and r <= 25:
             rank = r
+        okey = f"{pro}-{ot_.get('abbreviation', '?')}" if pro else f"ncaa-{ot_.get('id')}"
         games.append(game(start, me.get("homeAway") == "home", ot_.get("abbreviation", "?"),
-                          f"ncaa-{ot_.get('id')}", logo, _score(me) if final else None,
+                          okey, logo, _score(me) if final else None,
                           _score(op) if final else None, final,
                           tbd=comp.get("timeValid") is False, tv=tv))
+        games[-1]["raw"] = ev.get("date")
+    if pro:
+        own = (f"{pro}-{t['code']}", espn_logo(f"{pro}/500/{t['code'].lower()}"))
+        return dict(record=wl(games), rank=None, logo=own, games=games)
     record = (d.get("team") or {}).get("recordSummary") or wl(games)
     return dict(record=record, rank=rank, logo=(f"ncaa-{t['espn']}", espn_logo(f"ncaa/500/{t['espn']}")), games=games)
 
@@ -904,7 +912,11 @@ def main():
             continue
         data.append((t, info))
         print(f"  {t['key']:9} {len(info['games']):3} games  {info.get('record', '')}")
-        status.append(f"{t['key']:9} ok      {len(info['games']):3} games  {info.get('record', '')}")
+        nxt = next((g for g in sorted(info["games"], key=lambda g: g["dt"])
+                    if not g["final"] and g["dt"].date() >= today), None)
+        nx = (f"  next {nxt['dt']:%a %m/%d %I:%M%p} {'@' if not nxt['home'] else 'vs'} {nxt['opp']}"
+              f"{' TBD' if nxt['tbd'] else ''}{' raw=' + nxt['raw'] if nxt.get('raw') else ''}") if nxt else ""
+        status.append(f"{t['key']:9} ok      {len(info['games']):3} games  {info.get('record', '')}{nx}")
 
     cards = [(t, i) for t, i in data if t["kind"] == "card" and active(i, today)]
     gs, ge = grid_window(today)
