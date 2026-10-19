@@ -879,6 +879,7 @@ def main():
     sample = mock_data(today) if mock else {}
 
     data = []
+    status = []                      # one line per team, saved for troubleshooting
     for t in TEAMS:
         try:
             info = sample[t["key"]] if mock else FETCH[t["league"]](t, today)
@@ -886,9 +887,11 @@ def main():
             continue
         except Exception as e:
             print(f"  ! {t['key']}: {e}", file=sys.stderr)
+            status.append(f"{t['key']:9} FAILED  {type(e).__name__}: {str(e)[:160]}")
             continue
         data.append((t, info))
         print(f"  {t['key']:9} {len(info['games']):3} games  {info.get('record', '')}")
+        status.append(f"{t['key']:9} ok      {len(info['games']):3} games  {info.get('record', '')}")
 
     cards = [(t, i) for t, i in data if t["kind"] == "card" and active(i, today)]
     gs, ge = grid_window(today)
@@ -899,6 +902,9 @@ def main():
     os.makedirs(OUTDIR, exist_ok=True)
     out = os.path.join(OUTDIR, "lookahead.png")
     build(cards, rows, today, mock).save(out)
+    if not mock:
+        with open(os.path.join(OUTDIR, "lookahead-status.txt"), "w") as fh:
+            fh.write(f"date {today}  (feeds as of this render)\n" + "\n".join(status) + "\n")
     print("->", out)
 
 

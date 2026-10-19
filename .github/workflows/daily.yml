@@ -42,7 +42,7 @@ jobs:
         run: |
           git config user.name  "tigers-wallpaper-bot"
           git config user.email "actions@github.com"
-          git add --force output/current.png output/widget-*.png output/lookahead.png assets/logos assets/cfb-logos assets/cache || true
+          git add --force output/current.png output/widget-*.png output/lookahead.png output/lookahead-status.txt assets/logos assets/cfb-logos assets/cache || true
           if git diff --staged --quiet; then
             echo "No change — nothing to commit."
           else
