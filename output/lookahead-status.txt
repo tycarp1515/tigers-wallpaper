@@ -7,7 +7,7 @@ WMU-CFB   ok       12 games  5-2 (3-0)  next Sat 10/24 12:00PM @ TOLEDO
 DET-NHL   ok       84 games  3-3-3  next Thu 10/22 10:00PM @ VAN
 DET-NBA   ok       80 games  1-0  next Fri 10/23 08:00PM @ MIA raw=2026-10-24T00:00Z
 MICH-HKY  ok       34 games  6-0-0  next Fri 10/23 07:00PM vs WMU raw=2026-10-23T23:00Z
-MINN-HKY  ok       34 games  0-3-0  next Thu 10/22 08:00PM vs UND raw=2026-10-23T00:00Z
+MINN-HKY  ok       34 games  0-3-1  next Thu 10/22 08:00PM vs UND raw=2026-10-23T00:00Z
 WMU-HKY   ok       33 games  4-0-0  next Fri 10/23 07:00PM @ MICH raw=2026-10-23T23:00Z
 MICH-BB   ok        0 games  0-0
 MINN-BB   ok        0 games  0-0
