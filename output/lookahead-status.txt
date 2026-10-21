@@ -1,10 +1,10 @@
-date 2026-10-20  (feeds as of this render)
+date 2026-10-21  (feeds as of this render)
 DET-NFL   ok       17 games  3-2  next Sun 10/25 04:25PM vs GB
 MIN-NFL   ok       17 games  5-0  next Sun 10/25 01:00PM vs IND
 MICH-CFB  ok       12 games  4-2 (1-2)  next Sat 10/24 12:00PM vs INDIANA
 MINN-CFB  ok       12 games  4-2 (2-1)  next Sat 10/24 03:30PM vs IOWA
 WMU-CFB   ok       12 games  5-2 (3-0)  next Sat 10/24 12:00PM @ TOLEDO
-DET-NHL   ok       84 games  3-3-2  next Tue 10/20 09:40PM @ SEA
+DET-NHL   ok       84 games  3-3-3  next Thu 10/22 10:00PM @ VAN
 DET-NBA   ok       80 games  1-0  next Fri 10/23 08:00PM @ MIA raw=2026-10-24T00:00Z
 MICH-HKY  ok       34 games  6-0-0  next Fri 10/23 07:00PM vs WMU raw=2026-10-23T23:00Z
 MINN-HKY  ok       34 games  0-3-0  next Thu 10/22 08:00PM vs UND raw=2026-10-23T00:00Z
