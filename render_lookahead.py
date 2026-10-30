@@ -65,9 +65,9 @@ TEAMS = [
     dict(key="MINN-CFB", kind="card",  league="cfb",   name="MINNESOTA",   code="Minnesota",        espn="135",  color=(160, 20, 45)),
     dict(key="WMU-CFB",  kind="card",  league="cfb",   name="W. MICHIGAN", code="Western Michigan", espn="2711", color=(181, 161, 103)),
     dict(key="DET-NHL",  kind="strip", league="nhl",   name="RED WINGS",   code="DET",              color=(206, 17, 38)),
+    dict(key="MIN-NHL",  kind="strip", league="nhl",   name="WILD",        code="MIN",              color=(26, 120, 78)),
     dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET", espn="8",    color=(29, 66, 186)),
     dict(key="MICH-HKY", kind="strip", league="ncaah", name="MICHIGAN",    sub="HOCKEY", espn="130",  color=(255, 203, 5)),
-    dict(key="MINN-HKY", kind="strip", league="ncaah", name="MINNESOTA",   sub="HOCKEY", espn="135",  color=(160, 20, 45)),
     dict(key="WMU-HKY",  kind="strip", league="ncaah", name="W. MICHIGAN", sub="HOCKEY", espn="2711", color=(181, 161, 103)),
     dict(key="MICH-BB",  kind="strip", league="ncaab", name="MICHIGAN",    sub="HOOPS",  espn="130",  color=(255, 203, 5)),
     dict(key="MINN-BB",  kind="strip", league="ncaab", name="MINNESOTA",   sub="HOOPS",  espn="135",  color=(160, 20, 45)),
@@ -692,7 +692,7 @@ def opp_label(g):
 GRID_BACK = 1      # grid shows this many days back (yesterday's results), then today and ahead
 
 # Short labels for the grid rows; the logo already says which school/team it is.
-GRID_SHORT = {"DET-NHL": "WINGS", "DET-NBA": "PISTONS", "MICH-HKY": "MICH", "MINN-HKY": "MINN",
+GRID_SHORT = {"DET-NHL": "WINGS", "MIN-NHL": "WILD", "DET-NBA": "PISTONS", "MICH-HKY": "MICH",
               "WMU-HKY": "WMU", "MICH-BB": "MICH", "MINN-BB": "MINN", "WMU-BB": "WMU"}
 SUB_SHORT = {"HOCKEY": "HKY", "HOOPS": "HOOPS"}
 
