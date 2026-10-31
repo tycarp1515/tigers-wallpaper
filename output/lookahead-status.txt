@@ -7,7 +7,7 @@ WMU-CFB   ok       12 games  5-3 (3-1)  next Sat 10/31 12:00PM vs BOWLING GREEN
 DET-NHL   ok       84 games  6-4-3  next Sat 10/31 01:00PM vs STL
 MIN-NHL   ok       84 games  9-3-3  next Sun 11/01 03:30PM @ WSH
 DET-NBA   ok       80 games  4-1  next Fri 10/30 07:30PM @ BKN raw=2026-10-30T23:30Z
-MICH-HKY  ok       34 games  7-0-0  next Sat 10/31 06:00PM @ OSU raw=2026-10-31T22:00Z
+MICH-HKY  ok       34 games  7-0-0  next Sat 10/31 05:00PM @ OSU raw=2026-10-31T21:00Z
 WMU-HKY   ok       33 games  5-1-0  next Fri 10/30 07:00PM vs LIU raw=2026-10-30T23:00Z
 MICH-BB   ok        0 games  0-0
 MINN-BB   ok        0 games  0-0
