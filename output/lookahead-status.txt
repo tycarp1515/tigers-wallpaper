@@ -10,5 +10,4 @@ DET-NBA   ok       80 games  5-1  next Mon 11/02 07:30PM @ CHA raw=2026-11-03T00
 MICH-HKY  ok       34 games  7-1-0  next Sun 11/01 07:30PM @ OSU raw=2026-11-02T00:30Z
 WMU-HKY   ok       33 games  6-1-0  next Fri 11/06 08:07PM @ UND raw=2026-11-07T01:07Z
 MICH-BB   ok       30 games  0-0  next Mon 11/02 06:00PM vs OAK raw=2026-11-02T23:00Z
-MINN-BB   ok       32 games  0-0  next Mon 11/02 09:00PM vs UND raw=2026-11-03T02:00Z
-WMU-BB    ok       31 games  0-0  next Mon 11/02 07:00PM @ ODU raw=2026-11-03T00:00Z
+MICH-WBB  ok       29 games  0-0  next Thu 11/05 06:30PM vs CONN raw=2026-11-05T23:30Z
