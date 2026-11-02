@@ -69,9 +69,8 @@ TEAMS = [
     dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET", espn="8",    color=(29, 66, 186)),
     dict(key="MICH-HKY", kind="strip", league="ncaah", name="MICHIGAN",    sub="HOCKEY", espn="130",  color=(255, 203, 5)),
     dict(key="WMU-HKY",  kind="strip", league="ncaah", name="W. MICHIGAN", sub="HOCKEY", espn="2711", color=(181, 161, 103)),
-    dict(key="MICH-BB",  kind="strip", league="ncaab", name="MICHIGAN",    sub="HOOPS",  espn="130",  color=(255, 203, 5)),
-    dict(key="MINN-BB",  kind="strip", league="ncaab", name="MINNESOTA",   sub="HOOPS",  espn="135",  color=(160, 20, 45)),
-    dict(key="WMU-BB",   kind="strip", league="ncaab", name="W. MICHIGAN", sub="HOOPS",  espn="2711", color=(181, 161, 103)),
+    dict(key="MICH-BB",  kind="strip", league="ncaab", name="MICHIGAN",    sub="M HOOPS", espn="130", color=(255, 203, 5)),
+    dict(key="MICH-WBB", kind="strip", league="ncaaw", name="MICHIGAN",    sub="W HOOPS", espn="130", color=(255, 203, 5)),
 ]
 
 # ESPN logo-CDN abbreviations that differ from each league's own codes.
@@ -409,6 +408,7 @@ FETCH = {
     "nfl": fetch_nfl, "cfb": fetch_cfb, "nhl": fetch_nhl, "nba": lambda t, d: fetch_nba_any(t, d),
     "ncaah": lambda t, d: fetch_espn_college(t, d, "hockey/mens-college-hockey"),
     "ncaab": lambda t, d: fetch_espn_college(t, d, "basketball/mens-college-basketball"),
+    "ncaaw": lambda t, d: fetch_espn_college(t, d, "basketball/womens-college-basketball"),
 }
 
 
@@ -693,7 +693,7 @@ GRID_BACK = 1      # grid shows this many days back (yesterday's results), then 
 
 # Short labels for the grid rows; the logo already says which school/team it is.
 GRID_SHORT = {"DET-NHL": "WINGS", "MIN-NHL": "WILD", "DET-NBA": "PISTONS", "MICH-HKY": "MICH",
-              "WMU-HKY": "WMU", "MICH-BB": "MICH", "MINN-BB": "MINN", "WMU-BB": "WMU"}
+              "WMU-HKY": "WMU", "MICH-BB": "MICH", "MICH-WBB": "MICH"}
 SUB_SHORT = {"HOCKEY": "HKY", "HOOPS": "HOOPS"}
 
 
