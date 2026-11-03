@@ -9,5 +9,5 @@ MIN-NHL   ok       84 games  10-3-3  next Tue 11/03 07:00PM @ PHI
 DET-NBA   ok       80 games  5-1  next Mon 11/02 07:30PM @ CHA raw=2026-11-03T00:30Z
 MICH-HKY  ok       34 games  8-1-0  next Fri 11/13 12:00AM vs PSU TBD raw=2026-11-13T05:00Z
 WMU-HKY   ok       33 games  6-1-0  next Fri 11/06 08:07PM @ UND raw=2026-11-07T01:07Z
-MICH-BB   ok       30 games  0-0  next Mon 11/02 06:00PM vs OAK raw=2026-11-02T23:00Z
+MICH-BB   ok       30 games  1-0  next Fri 11/06 08:00PM vs CONN raw=2026-11-07T01:00Z
 MICH-WBB  ok       29 games  0-0  next Thu 11/05 06:30PM vs CONN raw=2026-11-05T23:30Z
