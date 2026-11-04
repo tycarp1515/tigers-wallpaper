@@ -66,11 +66,12 @@ TEAMS = [
     dict(key="WMU-CFB",  kind="card",  league="cfb",   name="W. MICHIGAN", code="Western Michigan", espn="2711", color=(181, 161, 103)),
     dict(key="DET-NHL",  kind="strip", league="nhl",   name="RED WINGS",   code="DET",              color=(206, 17, 38)),
     dict(key="MIN-NHL",  kind="strip", league="nhl",   name="WILD",        code="MIN",              color=(26, 120, 78)),
-    dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET", espn="8",    color=(29, 66, 186)),
     dict(key="MICH-HKY", kind="strip", league="ncaah", name="MICHIGAN",    sub="HOCKEY", espn="130",  color=(255, 203, 5)),
     dict(key="WMU-HKY",  kind="strip", league="ncaah", name="W. MICHIGAN", sub="HOCKEY", espn="2711", color=(181, 161, 103)),
     dict(key="MICH-BB",  kind="strip", league="ncaab", name="MICHIGAN",    sub="M HOOPS", espn="130", color=(255, 203, 5)),
     dict(key="MICH-WBB", kind="strip", league="ncaaw", name="MICHIGAN",    sub="W HOOPS", espn="130", color=(255, 203, 5)),
+    dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET", espn="8",    color=(29, 66, 186)),
+    dict(key="MIN-NBA",  kind="strip", league="nba",   name="TIMBERWOLVES", code="MIN", espn="16",  color=(35, 97, 146)),
 ]
 
 # ESPN logo-CDN abbreviations that differ from each league's own codes.
@@ -693,7 +694,7 @@ GRID_BACK = 1      # grid shows this many days back (yesterday's results), then 
 
 # Short labels for the grid rows; the logo already says which school/team it is.
 GRID_SHORT = {"DET-NHL": "WINGS", "MIN-NHL": "WILD", "DET-NBA": "PISTONS", "MICH-HKY": "MICH",
-              "WMU-HKY": "WMU", "MICH-BB": "MICH", "MICH-WBB": "MICH"}
+              "WMU-HKY": "WMU", "MICH-BB": "MICH", "MICH-WBB": "MICH", "MIN-NBA": "WOLVES"}
 SUB_SHORT = {"HOCKEY": "HKY", "HOOPS": "HOOPS"}
 
 
@@ -927,8 +928,11 @@ def main():
 
     cards = [(t, i) for t, i in data if t["kind"] == "card" and active(i, today)]
     gs, ge = grid_window(today)
+    # Keep a team's row while it's in season (a game within ~2 weeks either side), so an
+    # off week (e.g. Michigan hockey's bye) shows an empty row instead of vanishing.
     rows = [(t, i) for t, i in data if t["kind"] == "strip"
-            and any(gs <= g["dt"].date() <= ge for g in i["games"])]
+            and any(gs - dt.timedelta(days=14) <= g["dt"].date() <= ge + dt.timedelta(days=14)
+                    for g in i["games"])]
     print(f"football week {ws} – {we}: {len(cards)} cards | grid {gs} – {ge}: {len(rows)} rows")
 
     os.makedirs(OUTDIR, exist_ok=True)
