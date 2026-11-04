@@ -68,8 +68,6 @@ TEAMS = [
     dict(key="MIN-NHL",  kind="strip", league="nhl",   name="WILD",        code="MIN",              color=(26, 120, 78)),
     dict(key="MICH-HKY", kind="strip", league="ncaah", name="MICHIGAN",    sub="HOCKEY", espn="130",  color=(255, 203, 5)),
     dict(key="WMU-HKY",  kind="strip", league="ncaah", name="W. MICHIGAN", sub="HOCKEY", espn="2711", color=(181, 161, 103)),
-    dict(key="MICH-BB",  kind="strip", league="ncaab", name="MICHIGAN",    sub="M HOOPS", espn="130", color=(255, 203, 5)),
-    dict(key="MICH-WBB", kind="strip", league="ncaaw", name="MICHIGAN",    sub="W HOOPS", espn="130", color=(255, 203, 5)),
     dict(key="DET-NBA",  kind="strip", league="nba",   name="PISTONS",     code="DET", espn="8",    color=(29, 66, 186)),
     dict(key="MIN-NBA",  kind="strip", league="nba",   name="TIMBERWOLVES", code="MIN", espn="16",  color=(35, 97, 146)),
 ]
