@@ -7,6 +7,6 @@ WMU-CFB   ok       12 games  7-3 (5-1)  next Tue 11/17 07:00PM vs EASTERN MICHIG
 DET-NHL   ok       84 games  7-9-3  next Thu 11/12 07:30PM @ FLA
 MIN-NHL   ok       84 games  13-3-4  next Thu 11/12 07:00PM @ TOR
 MICH-HKY  ok       34 games  8-1-0  next Fri 11/13 07:00PM vs PSU raw=2026-11-14T00:00Z
-WMU-HKY   ok       33 games  6-2-1  next Fri 11/13 07:00PM vs COLC raw=2026-11-14T00:00Z
+WMU-HKY   FAILED  HTTPError: 500 Server Error: Internal Server Error for url: https://site.api.espn.com/apis/site/v2/sports/hockey/mens-college-hockey/teams/2711/schedule
 DET-NBA   ok       80 games  7-3  next Thu 11/12 07:00PM @ WSH raw=2026-11-13T00:00Z
 MIN-NBA   ok       80 games  8-3  next Thu 11/12 08:00PM vs DAL raw=2026-11-13T01:00Z
