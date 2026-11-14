@@ -6,7 +6,7 @@ MINN-CFB  ok       12 games  5-4 (3-3)  next Sat 11/14 07:00PM @ PENN STATE
 WMU-CFB   ok       12 games  7-3 (5-1)  next Tue 11/17 06:00PM vs EASTERN MICHIGAN
 DET-NHL   ok       84 games  7-10-3  next Sat 11/14 07:00PM @ TBL
 MIN-NHL   ok       84 games  14-3-4  next Sat 11/14 07:00PM @ BOS
-MICH-HKY  ok       34 games  8-1-0  next Fri 11/13 07:00PM vs PSU raw=2026-11-14T00:00Z
-WMU-HKY   ok       33 games  6-2-1  next Fri 11/13 07:00PM vs COLC raw=2026-11-14T00:00Z
+MICH-HKY  ok       34 games  9-1-0  next Sat 11/14 07:00PM vs PSU raw=2026-11-15T00:00Z
+WMU-HKY   ok       33 games  7-2-1  next Sat 11/14 06:00PM vs COLC raw=2026-11-14T23:00Z
 DET-NBA   ok       80 games  8-3  next Sat 11/14 08:00PM @ MIA raw=2026-11-15T01:00Z
 MIN-NBA   ok       80 games  9-3  next Sat 11/14 08:00PM vs CHI raw=2026-11-15T01:00Z
