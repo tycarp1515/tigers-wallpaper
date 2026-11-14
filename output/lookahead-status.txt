@@ -1,4 +1,4 @@
-date 2026-11-13  (feeds as of this render)
+date 2026-11-14  (feeds as of this render)
 DET-NFL   ok       17 games  6-2  next Sun 11/15 09:30AM vs NE
 MIN-NFL   ok       17 games  6-2  next Sun 11/15 01:00PM @ GB
 MICH-CFB  ok       12 games  5-4 (2-4)  next Sat 11/14 03:30PM @ OREGON
