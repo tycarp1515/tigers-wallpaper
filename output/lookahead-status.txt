@@ -4,7 +4,7 @@ MIN-NFL   ok       17 games  7-2  next Sun 11/22 08:20PM @ SF
 MICH-CFB  ok       12 games  5-5 (2-5)  next Sat 11/21 03:30PM vs UCLA
 MINN-CFB  ok       12 games  5-5 (3-4)  next Sat 11/21 12:00PM vs NORTHWESTERN
 WMU-CFB   ok       12 games  8-3 (6-1)  next Tue 11/24 07:00PM vs MIAMI (OH)
-DET-NHL   ok       84 games  8-10-3  next Wed 11/18 07:30PM vs BOS
+DET-NHL   ok       84 games  8-11-3  next Sat 11/21 07:00PM vs NYI
 MIN-NHL   ok       84 games  16-3-4  next Thu 11/19 08:00PM @ CGY
 MICH-HKY  ok       34 games  10-1-0  next Fri 11/20 07:00PM vs MSU raw=2026-11-21T00:00Z
 WMU-HKY   ok       33 games  8-2-1  next Fri 11/20 08:00PM @ OMA raw=2026-11-21T01:00Z
