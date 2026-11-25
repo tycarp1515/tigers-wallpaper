@@ -1,9 +1,9 @@
-date 2026-11-24  (feeds as of this render)
+date 2026-11-25  (feeds as of this render)
 DET-NFL   ok       17 games  8-2  next Thu 11/26 01:00PM vs CHI
 MIN-NFL   ok       17 games  7-3  next Sun 11/29 01:00PM vs ATL
 MICH-CFB  ok       12 games  6-5 (3-5)  next Sat 11/28 12:00PM @ OHIO STATE
 MINN-CFB  ok       12 games  6-5 (4-4)  next Fri 11/27 07:30PM @ WISCONSIN
-WMU-CFB   ok       12 games  8-3 (6-1)  next Tue 11/24 07:00PM vs MIAMI (OH)
+WMU-CFB   ok       12 games  8-4 (6-2)
 DET-NHL   ok       84 games  8-12-3  next Wed 11/25 07:30PM vs VAN
 MIN-NHL   ok       84 games  18-3-5  next Wed 11/25 08:00PM vs UTA
 MICH-HKY  ok       34 games  11-2-0  next Fri 11/27 07:00PM vs FRST raw=2026-11-28T00:00Z
